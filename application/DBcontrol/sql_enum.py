@@ -1,6 +1,6 @@
 from enum import Enum, Flag, auto
 
-__all__ = ['JOIN', 'FORMULA', 'CONNECT', 'str2formula', 'join2str', 'str2connect', 'connect2str', 'isjoin', 'isformula', 'isconnect']
+__all__ = ['JOIN', 'FORMULA', 'CONNECT', 'str2formula', 'formula2str', 'join2str', 'str2connect', 'connect2str', 'isjoin', 'isformula', 'isconnect']
 
 # enum class
 class JOIN(Flag):
@@ -77,8 +77,8 @@ def str2connect(s:str):
     raise ValueError(f'"{s}"')
   return ret
 def connect2str(c:CONNECT):
-  ret = 'AND' if s == CONNECT.AND else \
-        'OR'  if s == CONNECT.OR  else None
+  ret = 'AND' if c == CONNECT.AND else \
+        'OR'  if c == CONNECT.OR  else None
   if ret is None:
     raise ValueError(f'"{s}"')
   return ret
