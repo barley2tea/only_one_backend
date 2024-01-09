@@ -1,11 +1,8 @@
-# from .sql_enum import *
-import sql_enum
-from sql_enum import *
+from .sql_enum import *
+from .sql_enum import __all__
 from dataclasses import dataclass, field
 import re
-
-__all__ = ['isvalue', 'get_val', 'VALUE', 'COLUMN', 'TABLE', 'ARGUMENT', 'AS_VALUE', 'AS_COLUMN', 'AS_TABLE', 'AS_ARGUMENT', 'CH_COLUMN', 'AS_CH_COLUMN']
-__all__.extend(sql_enum.__all__)
+__all__.extend(['isvalue', 'get_val', 'VALUE', 'COLUMN', 'TABLE', 'ARGUMENT', 'AS_VALUE', 'AS_COLUMN', 'AS_TABLE', 'AS_ARGUMENT', 'CH_COLUMN', 'AS_CH_COLUMN'])
 
 def _check_name(s:str):
   if s is None: raise ValueError(f'Wrong format: {s}')
@@ -79,7 +76,7 @@ class AS_VALUE(VALUE):
   as_name: str
   def __post_init__(self):
     _check_name(self.as_name)
-  def __str__(self):  return f"{self.show()} AS '{self.as_name}'"
+  def __str__(self):  return f"{self.show()} AS `{self.as_name}`"
   def show(self):     return super(AS_VALUE, self).show()
 
 # sql value class
