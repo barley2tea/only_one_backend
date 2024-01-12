@@ -30,7 +30,7 @@ def stData(stD, d=False):
 def getStName(studentId, ope=default_ope, d=False, j=False):
   t = sqltable('student', ['courses', JOIN.NATURAL_INNER])
   w = sqlcond(['student.studentID', 'stId', '='])
-  cols = get_val(['student.grade', 'grade'], ['courses.course', 'course'], ['student.name', 'name'], t='as_column')
+  cols = getVal(['student.grade', 'grade'], ['courses.course', 'course'], ['student.name', 'name'], t='as_column')
   stmt = selectsql(cols, t, w)
   res = ope.query(str(stmt), args={'stId':studentId}, prepared=True, dictionary=d)
   if len(res) != 1: return {'grade': None, 'course': None, 'name': None} if d else None
@@ -54,7 +54,7 @@ def _select_col_as(col, key_is_colname):
     name = col.name if isinstance(col, COLUMN) else col
     as_name = [k for k, v in COL_LIST.items() if v == name] if key_is_colname else []
     if not as_name: as_name = [name.split('.')[1]]
-    col = get_val([name, as_name[0]], t='as_column')
+    col = getVal([name, as_name[0]], t='as_column')
   return col
 
 def getStData(select_col, ope=default_ope, key_is_colname=True, dictionaly=True, **kwargs):
@@ -67,7 +67,7 @@ def getStData(select_col, ope=default_ope, key_is_colname=True, dictionaly=True,
 
   def append_tables(key, col, join=JOIN.NATURAL_INNER, on=None, cond_connect='and'):
     if col is None: return
-    _table = get_val(col.split('.')[0], t='table')
+    _table = getVal(col.split('.')[0], t='table')
     if _table.name not in tables.getTableNameList(ch=False): tables.append([_table, join, on])
     conds.append((col, key, '=', cond_connect))
     args[key] = kwargs[key]
@@ -78,14 +78,14 @@ def getStData(select_col, ope=default_ope, key_is_colname=True, dictionaly=True,
     [ append_tables(k, COL_LIST.get(k, None)) for k in kwargs.keys() ]
 
     if 'dorm' in kwargs.keys():
-      tables.append(get_val('dormitoryBelong', t='table'))
+      tables.append(getVal('dormitoryBelong', t='table'))
       if 'floor' in kwargs.keys():  append_tables('floor', 'dormitoryPlace.floor')
       else:                         tables.append(['dormitoryPlace', JOIN.NATURAL_INNER, None])
       append_tables('dorm', 'dormitory.dormitory')
     elif 'floor' in kwargs.keys():
       append_tables('floor', 'dormitoryPlace.floor')
     
-  add_table = reduce(lambda a, x: a | {x.get_table().name}, select_col, set()) - set(tables.getTableNameList(ch=False))
+  add_table = reduce(lambda a, x: a | {x.getTable().name}, select_col, set()) - set(tables.getTableNameList(ch=False))
   if 'dormitory' in add_table and 'dormitoryPlace' not in tables.getTableNameList(ch=False):
     tables.append(['dormitoryPlace', JOIN.NATURAL_LEFT_OUTER, None])
     add_table.discard('dormitoryPlace')
@@ -99,7 +99,7 @@ def getStData(select_col, ope=default_ope, key_is_colname=True, dictionaly=True,
   return res
 
 
-def getClData(select_col, ope=default_ope, **kwargs):
+def getClData(select_col, ope=default_ope, key_is_colname=True, **kwargs):
   conds = sqlcond()
   tables = sqltable('cleaning')
   args = {}
@@ -111,7 +111,7 @@ def getClData(select_col, ope=default_ope, **kwargs):
     if col is None:
       # print('not setting', key) # debug
       return
-    _table = get_val(col.split('.')[0], t='table')
+    _table = getVal(col.split('.')[0], t='table')
     if _table.name not in tables.getTableNameList(ch=False): tables.append([_table, join, on])
     conds.append((col, key, '=', cond_connect))
     args[key] = kwargs[key]
@@ -123,12 +123,12 @@ def getClData(select_col, ope=default_ope, **kwargs):
 
     if 'dorm' in kwargs.keys():
       if 'floor' in kwargs.keys():  append_tables('floor', 'dormitoryPlace.floor')
-      else:                         tables.append(get_val('dormitoryPlace', t='table'))
+      else:                         tables.append(getVal('dormitoryPlace', t='table'))
       append_tables('dorm', 'dormitory.dormitory')
     elif 'floor' in kwargs.keys():
       append_tables('floor', 'dormitoryPlace.floor')
     
-  add_table = reduce(lambda a, x: a | {x.get_table().name}, select_col, set()) - set(tables.getTableNameList(ch=False))
+  add_table = reduce(lambda a, x: a | {x.getTable().name}, select_col, set()) - set(tables.getTableNameList(ch=False))
 
   if 'dormitory' in add_table and 'dormitoryPlace' not in tables.getTableNameList(ch=False):
     tables.append(['dormitoryPlace', JOIN.NATURAL_LEFT_OUTER, None])

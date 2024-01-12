@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from functools import reduce
 import re
 
-__all__.extend(['formulacond', 'conncond', 'sqlcond', 'sqltable', 'selectsql'])
+__all__.extend(['formulacond', 'conncond', 'sqlcond', 'sqltable', 'selectsql', 'insertvalsql', 'insertselectsql'])
 
 # ------------------conditions------------------
 
@@ -25,9 +25,9 @@ class BaceConditions:
       raise ValueError(f'{type(i)}')
     self.vals[k] = v
 
-  def get_vals(self): return list(map(lambda x: x.show(), self.vals))
+  def get_vals(self): return [ x.show() for x in self.vals ]
   def get_include_table(self):
-    tables = filter(lambda x: x is not None, map(lambda x: x.get_table(), self.vals))
+    tables = filter(lambda x: x is not None, map(lambda x: x.getTable(), self.vals))
     return { i.as_name if isinstance(i, AS_TABLE) else i.name for i in tables }
     
 
@@ -154,12 +154,10 @@ class SQLTable:
     if not isinstance(a, ConnectTable):
       a = conntable(*a)
     if type(a.table) is TABLE:
-      a.table = _convert_as_table(a.table, self.getTableNameList())
+      a.table = getAsVal(a.table, nlist=self.getTableNameList(), p_t='table', pre='T')
     if self.bace_table is None:
       self.bace_table = a.table
       return
-    if isinstance(a.table, AS_TABLE) and a.table.as_name in self.getAsNameList():
-      raise ValueError(f'Duplicate as_table name:{table.as_name} in "{table}"')
     self.connect_tables.append(a)
       
 
@@ -171,6 +169,11 @@ class SQLTable:
       raise TypeError('val is not SQLTable')
     self.append(val.bace_table, con, on)
     self.expand(val.connect_tables)
+
+  def getTables(self):
+    if self.bace_table is None: return []
+    ret = [self.bace_table]
+    ret.extend([ c.table for c in self.connect_tables ])
 
   def getTableNameList(self, ch=True):
     if self.bace_table is None: return []
@@ -218,12 +221,81 @@ class SelectSQL:
     # check and add column_as_dict
     for c in self.columns:
       if isinstance(c, CH_COLUMN):  name = c.ch_name
-      elif isinstance(c, COLUMN):   name = c.get_table().name
+      elif isinstance(c, COLUMN):   name = c.getTable().name
       if name not in table_names:   raise ValueError(f'non-existent table: {name}')
 
   def __str__(self):
-    col = reduce(lambda a, x: f'{a}, {x}', self.columns)
+    col = reduce(lambda a, x: f'{a}, {x}', self.columns[1:], str(self.columns[0]))
     return f'SELECT {col} FROM ({self.sql_table}) WHERE {self.where}'
+
+@dataclass
+class InsertSQL:
+  table:  TABLE
+  columns:  list[COLUMN]
+  ondupulicate: bool = field(default=False, init=False)
+
+  def __post_init__(self):
+    isvalue(self.table, t='table')
+    isvalue(*self.columns, t='column')
+    if any([ self.table != c.getTable() and not isinstance(c, ARGUMENT) for c in self.columns ]):
+      raise TypeError('table error')
+
+  def __str__(self):
+    return self.show()
+
+  def show(self):
+    col = reduce(lambda a, x: f'{a}, `{x.getName()}`', self.columns[1:], f'`{self.columns[0].getName()}`')
+    return f'INSERT INTO {str(self.table)}({col})'
+
+  def set_isupdate(self, b:bool):
+    self.ondupulicate = b
+
+@dataclass
+class InsertValueSQL(InsertSQL):
+  args: list[ARGUMENT]
+
+  def __post_init__(self):
+    super(InsertValueSQL, self).__post_init__()
+    isvalue(*self.args, t='arg')
+    if len(self.args) != len(self.columns):
+      raise TypeError('args and columns must be same length')
+
+  def __str__(self):
+    if self.ondupulicate:
+      b_c = f'`{self.columns[0].getName()}`=nwcol.{self.args[0].getName()}'
+      key_update = reduce(lambda a, x: f'{a}, `{x[0].getName()}`=nwcol.{x[1].getName()}', zip(self.columns[1:], self.args[1:]), b_c)
+      return f'{self.show()} AS nwcol ON DUPLICATE KEY UPDATE {key_update}'
+    else:
+      return self.show()
+
+  def show(self):
+    arg = reduce(lambda a, x: f'{a}, {x.show()}', self.args[1:], self.args[0].show())
+    return f'{super().show()} VALUE({arg})'
+
+@dataclass
+class InsertSelectSQL(InsertSQL):
+  select: SelectSQL
+
+  def __post_init__(self):
+    super(InsertSelectSQL, self).__post_init__()
+    if not isinstance(self.select, SelectSQL):
+      raise TypeError('not SelectSQL')
+
+    if len(self.select.columns) != len(self.columns):
+      raise TypeError('select.columns and columns must be same length')
+
+    if not all([isinstance(c, AS_VALUE) for c in self.select.columns]):
+      raise TypeError(f'SelectSQL\'s column is not as name')
+
+  def __str__(self):
+    if self.ondupulicate:
+      cols = self.select.columns
+      _c = reduce(lambda a, x: f'{a}, {x}', cols[1:], str(cols[0]))
+      b_c = f'`{self.columns[0].getName()}`=nwcol.{cols[0].getName()}'
+      upcol = reduce(lambda a, x: f'{a}, `{x[0].getName()}`=nwcol.{x[1].getName()}', zip(self.columns[1:], cols[1:]), b_c)
+      return f'{super().__str__()} SELECT {_c} FROM ({str(self.select)}) AS nwcol ON DUPLICATE KEY UPDATE {upcol}'
+    else:
+      return f'{super().__str__()} {str(self.select)}'
 
 # type check of join_type
 # if join_type has NATURAL or CROSS component, set 'on' to 'None'
@@ -242,60 +314,17 @@ def str2condfunc(s):
     raise ValueError(f'"{s}"')
   return ret
 
-def _convert_col_arg(v):
-  if type(v) is str:
-    if '.' in v:
-      v = get_val([v, v.replace('.', '_')], t = 'as_column')
-    else:
-      v = get_val([v, v], t='as_arg')
-  elif type(v) is list or type(v) is tuple:
-    l_len = len(v)
-    if l_len < 2:
-      v = _convert_col_arg(*v)
-    else:
-      t = ( ('as_ch_column' if l_len >= 3 else 'ch_column') if '.' in v[0] else \
-            'as_arg') if type(v[0]) is str else \
-          'as_arg' if isinstance(v[0], ARGUMENT) else \
-          'as_ch_column' if l_len > 2 or isinstance(v[0], (AS_COLUMN, CH_COLUMN)) else \
-          'ch_column'
-      v = get_val(v, t=t)
-
-  return v
-
-def _convert_table(t, dft_as_name=None):
-  if type(t) is str:
-    return get_val(t, t='table') if dft_as_name is None else get_val([t, dft_as_name], t='as_table')
-  elif type(t) in [list, tuple]:
-    return  _convert_table(t[0], dft_as_name=dft_as_name) if len(t) == 1 else \
-            t[0] if isinstance(t[0], TABLE) and dft_as_name is None else get_val(t, t='as_table')
-  elif isinstance(t, TABLE) and dft_as_name is None:
-    return t
-  else:
-    return get_val([t, dft_as_name], t='as_table')
-
-def _convert_as_table(table, table_list, pre='T'):
-  if isinstance(table, AS_TABLE):
-    if table.as_name in table_list: pre = table.as_name
-    else:                           return table
-  name = table.name if isinstance(table, TABLE) else table
-  i = 0
-  as_name = f'{pre}0'
-  while as_name in table_list:
-    i += 1
-    as_name = f'{pre}{i}'
-  return get_val([name, as_name], t='as_table')
-
 def _convert_col(col, as_dict, tlist):
   if not isinstance(col, COLUMN): return col
   if isinstance(col, CH_COLUMN):
     if col.ch_name in tlist:  return col
 
-  table_name = col.name.split('.')[0]
+  table_name = col.getTableName()
   if table_name in tlist and not isinstance(col, CH_COLUMN):  return col
   ch_name = as_dict.get(table_name, [])
   if len(ch_name) != 1:
-    raise ValueError(f"Table not define in SQLTable:{col.get_table().name}")
-  return get_val([col,ch_name[0]], t='as_ch_column' if isinstance(col, AS_VALUE) else 'ch_column')
+    raise ValueError(f"Table not define in SQLTable:{col.getTable().name}")
+  return getVal([col, ch_name[0]], t='as_ch_column' if isinstance(col, AS_VALUE) else 'ch_column')
 
 def _convert_cond(sqlc, sqlt):
   as_dict = sqlt.getAsDict()
@@ -310,7 +339,7 @@ def _convert_cond(sqlc, sqlt):
 # val1, val2: instance of COLUMN or VALUE. if they are not AS_VALUE or AS_COLUMN, it is converted theses
 # formula: if it is string, convert FORMULA
 def formulacond(val1, val2, formula):
-  vals = list(map(_convert_col_arg, [val1, val2]))
+  vals = getVal(val1, val2, p_t='arg', p_c='ch', l=True)
   if isinstance(formula, str): formula = str2formula(formula)
   return FormulaConditions(vals, formula)
 
@@ -337,9 +366,9 @@ def sqlcond(bace=None, *conn_conds, condfunc='formula'):
   return SQLConditions(bace, conn_conds)
 
 def conntable(table, join, on=None, on_condfunc='formula'):
-  table = _convert_table(table)
-  if type(join) == str:
-    join = str2join(join)
+  table = getVal(table, p_t='table')
+  isvalue(table, t='table')
+  if type(join) == str: join = str2join(join)
   if on is not None and not isinstance(on, SQLConditions):
     on = sqlcond(*on, condfunc=on_condfunc)
   return ConnectTable(table, join, on)
@@ -350,14 +379,14 @@ def sqltable(bace=None, *conns):
   dfNN = 0
   asNames = {}
   if not isinstance(bace, AS_TABLE):
-    bace = _convert_table(bace, dft_as_name='T0')
+    bace = getAsVal(bace, p_t='table')
     bace = ConnectTable(bace, JOIN.NATURAL_INNER, None)
     asNames[bace.table.as_name] = bace.table
   else: bace = ConnectTable(bace, JOIN.NATURAL_INNER, None)
 
   conns = [ c if isinstance(c, ConnectTable) else conntable(*c) for c in conns ]
   for c in conns:
-    c.table = _convert_as_table(c.table, asNames.keys())
+    c.table = getAsVal(c.table, nlist=list(asNames.keys()), p_t='table')
     asNames[c.table.as_name] = c.table
 
     as_set = set(asNames.keys())
@@ -365,53 +394,46 @@ def sqltable(bace=None, *conns):
     for k in asNames.keys(): as_dict[asNames[k].name] = None if asNames[k].name in as_dict.keys() else k
     for c in [x for r in map(lambda x: x.on.to_list(), filter(lambda x: x.on is not None, conns)) for x in r]:
       for i in [x for x in range(len(c)) if isinstance(c[x], COLUMN) and not isinstance(c[x], CH_COLUMN)]:
-        ch_name = as_dict.get(c[i].get_table().name, None)
+        ch_name = as_dict.get(c[i].getTable().name, None)
         if ch_name is None: raise ValueError(f'NameError')
-        if type(c[i]) is COLUMN:  c[i] = get_val([c[i].name, as_name], t='ch_column')
-        else: c[i] = get_val([c[i].name, ch_name, c[i].as_name], t='as_ch_column')
+        if type(c[i]) is COLUMN:  c[i] = getVal([c[i].name, ch_name], t='ch_column')
+        else: c[i] = getVal([c[i].name, ch_name, c[i].as_name], t='as_ch_column')
 
   return SQLTable(bace.table, conns)
-
 
 def selectsql(cols, sql_table, where, default_condfunc='formula'):
   if not isinstance(sql_table, SQLTable):   sql_table = sqltable(*sql_table)
   if not isinstance(where, SQLConditions):  where = sqlcond(*where, condfunc=default_condfunc)
-  cols = list(map(_convert_col_arg, cols))
+  cols = getVal(*cols, l=True)
 
-  # as_dict = sql_table.getAsDict()
-  # as_list = sql_table.getAsNameList()
-
-  # def chval(val):
-  #   if isinstance(val, CH_COLUMN):
-  #     if not val.ch_name in as_list:
-  #       raise ValueError(f"Table not define in SQLTable:{val.ch_name}")
-  #   elif isinstance(val, COLUMN):
-  #     ch_name = as_dict.get(val.get_table().get_name(), [])
-  #     if not ch_name:
-  #       return val
-  #     if len(ch_name) != 1:
-  #       raise ValueError(f"Table not define in SQLTable:{val.get_table().name}")
-  #     val = get_val([val,ch_name[0]], t='as_ch_column' if type(val) is AS_COLUMN else 'ch_column')
-  #   return val
-
-  # def addchval(cnd):
-  #   for i in range(len(cnd.vals)):
-  #     cnd.vals[i] = chval(cnd.vals[i])
-
-  # [ addchval(c.cond) for c in where.connect_conds ]
-  # addchval(where.bace_cond)
   _convert_cond(where, sql_table)
   as_dict = sql_table.getAsDict()
   as_list = sql_table.getAsNameList()
   cols = list(map(lambda x: _convert_col(x, as_dict, as_list), cols))
 
-  # for i in range(len(cols)): cols[i] = chval(cols[i])
-
   return SelectSQL(cols, sql_table, where)
 
+def insertvalsql(cols, table, vals):
+  cols = getVal(*cols)
+  vals = getVal(*vals, p_t='arg')
+  table = getVal(table, t='table')
+  if any([isinstance(c, ARGUMENT) for c in cols]) or any([isinstance(c, COLUMN) for c in vals]):
+    raise ValueError('Value error in insertvalsql')
 
+  cols = list(map(lambda c: getVal(c.name, t='column'), cols))
+  if isinstance(table, AS_TABLE): table = getVal(table.name, t='table')
 
+  return InsertValueSQL(table, cols, vals)
 
+def insertselectsql(cols, table, select):
+  cols = getVal(*cols)
+  table = getVal(table, t='table')
+  if not isinstance(select, SelectSQL): select = selectsql(*select)
+  if any([isinstance(c, ARGUMENT) for c in cols]): raise ValueError('Value error in insertvalsql')
 
+  cols = list(map(lambda c: getVal(c.name, t='column'), cols))
+  if isinstance(table, AS_TABLE): table = getVal(table.name, t='table')
 
+  select.columns = getAsVal(*select.columns, pre='C')
 
+  return InsertSelectSQL(table, cols, select)
