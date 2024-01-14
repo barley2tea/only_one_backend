@@ -34,6 +34,7 @@ class MysqlOperator:
 
   def query(self, stmt, commit=False, args=None, many=False, prepared=True, **kwargs):
     try:
+      if type(stmt) is not str: stmt = str(stmt)
       cur = self.con.cursor(prepared=prepared, **kwargs)
       exefunc = cur.executemany if many else cur.execute
       if args is None:  exefunc(stmt)

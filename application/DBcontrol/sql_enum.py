@@ -70,10 +70,11 @@ def join2str(j:JOIN):
   if ret is None:
     raise ValueError(f'"{f}"')
   return ret
-def str2connect(s:str):
+def str2connect(s:str, e=True):
+  if isinstance(s, CONNECT):  return s
   ret = CONNECT.AND if s == 'and' else \
         CONNECT.OR  if s == 'or'  else None
-  if ret is None:
+  if ret is None and e:
     raise ValueError(f'"{s}"')
   return ret
 def connect2str(c:CONNECT):

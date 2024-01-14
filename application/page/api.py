@@ -37,7 +37,9 @@ def root():
 
   IoT_id = IoT_id[0][0]
   stat = data_prossesing(IoT_id, request.get_data())
-  ope.query('INSERT INTO IoT_Data(IoTID, dataStatus) VALUES(%(ID)s, %(stat)s);', commit=True, args={'ID': IoT_id, 'stat':stat}, prepared=True)
+  table = getVal('IoT_Data', t='table')
+  stmt = insertvalsql(table.getCol('IoTID', 'dataStatus'), table, ['ID', 'stat'])
+  ope.query(stmt, commit=True, args={'ID': IoT_id, 'stat':stat}, prepared=True)
   return jsonify({'stat': 'success', 'data': stat}), 200
 
 # Set student password
@@ -142,14 +144,13 @@ def add_rollcall():
       **stData(td['account'], d=True)
     } for td in tableData
   ]
-  INSERT_ROLL_CALL = '''
-INSERT INTO `rollCall`(`dormitoryID`, `studentID`, `day`, `registeredStudentID`)
-SELECT T1.dormitoryID, T2.studentID, STR_TO_DATE(%(date)s, '%Y-%m-%d'), %(rStID)s
-FROM `dormitory` AS T1 CROSS JOIN (`student` AS T2 NATURAL INNER JOIN `courses` AS T3)
-WHERE T1.dormitory = %(dorm)s AND T2.grade = %(grade)s AND T3.course = %(course)s AND T2.name = %(name)s;
-'''
+  seltab = sqltable('dormitory', ['student', JOIN.CROSS], ['courses', JOIN.NATURAL_INNER])
+  selwhe = sqlcond(['dormitory.dormitory', 'dorm'], ['student.grade', 'grade'], ['courses.course', 'course'], ['student.name', 'name'])
+  select = selectsql(['dormitory.dormitoryID', 'student.studentID', 'date', 'rStID'], seltab, selwhe)
+  stmt = insertselectsql(['dormitoryID', 'studentID', 'day', 'registeredStudentID'], 'rollCall', select)
+  stmt = str(stmt).replace('%(date)s', "STR_TO_DATE(%(date)s, '%Y-%m-%d')")
 
-  ope.query(INSERT_ROLL_CALL, commit=True, args=args, many=True, prepared=True)
+  ope.query(stmt, commit=True, args=args, many=True, prepared=True)
   return HTTP_STAT(200)
 
 # insert cleaning
@@ -184,7 +185,7 @@ def add_cleaning():
   mtargs = []
   mdtargs = []
   for mt in mCTD:
-    d_b = {'y_m': year_month, 'day': int(mt['day'])}
+    d_b = {'y_m': year_month, 'day': int(mt['day']), 'clType': 'monthly'}
     mta_d = d_b.copy()
     mta_d.update(place=mt['place'])
     mdta_d = d_b.copy()
@@ -195,11 +196,8 @@ def add_cleaning():
       mdta_d_add.update(**studentData(st, d=True))
       mdtargs.append(mdta_d_add)
 
-  INSERT_CLEANING = '''
-INSERT INTO `cleaning`(`cleaningTypeID`, `place`, `year_month`, `day`, `times`)
-  SELECT T0.cleaningTypeID, %(place)s, %(y_m)s, %(day)s, %(times)s
-  FROM `cleaningType` AS T0 WHERE T0.cleaningType=%(clType)s;
-'''
+  select = selectsql(['cleaningType.cleaningTypeID', 'place', 'y_m', 'day', 'times'], 'cleaningType', ['cleaningType.cleaningType', 'clType'])
+  INSERT_CLEANING = insertselectsql(['cleaningTypeID', 'place', 'year_month', 'day', 'times'], 'cleaning', select)
 
   INSERT_CLEANING_MONTHLY = '''
 INSERT INTO `cleaning`(`cleaningTypeID`, `place`, `year_month`, `day`, `times`)
@@ -213,28 +211,21 @@ FROM `cleaningType` AS T1
 WHERE T1.cleaningType='monthly' AND NOT EXISTS(SELECT * FROM `cleaning` AS T WHERE T.year_month=%(y_m)s AND T.day=%(day)s);
 '''
 
-  INSERT_CLEANING_DUTY = '''
-INSERT INTO `cleaningDuty`(`studentID`, `cleaningID`, `registeredStudentID`)
-  SELECT T3.studentID, T1.cleaningID, %(rStID)s
-  FROM ((`cleaning` AS T1 NATURAL INNER JOIN `cleaningType` AS T2) CROSS JOIN `student` AS T3 NATURAL INNER JOIN `courses` AS T4)
-  WHERE
-    T1.place=%(place)s AND T1.year_month=%(y_m)s AND T1.times=%(times)s AND T2.cleaningType=%(clType)s
-    AND T3.grade=%(grade)s AND T4.course=%(course)s AND T3.name=%(name)s;
-'''
+  sqlt = sqltable('cleaning', ['cleaningType', JOIN.NATURAL_INNER], ['student', JOIN.CROSS], ['courses', JOIN.NATURAL_INNER])
+  scond = [['cleaning.year_month', 'y_m'], ['cleaningType.cleaningType', 'clType'], ['student.grade', 'grade'], ['courses.course', 'course'], ['student.name', 'name']]
+  wcond = sqlcond(*scond, ['cleaning.place', 'place'], ['cleaning.times', 'times'])
+  wselect = selectsql(['student.studentID', 'cleaning.cleaningID', 'rStID'], sqlt, wcond)
+  mcond = sqlcond(*scond, ['cleaning.day', 'day'])
+  mselect = selectsql(['student.studentID', 'cleaning.cleaningID', 'rStID'], sqlt, mcond)
+  insert = [['studentID', 'cleaningID', 'registeredStudentID'], 'cleaningDuty']
 
-  INSERT_CLEANING_DUTY_MONTHLY = '''
-INSERT INTO `cleaningDuty`(`studentID`, `cleaningID`, `registeredStudentID`)
-  SELECT T3.studentID, T1.cleaningID, %(rStID)s
-  FROM ((`cleaning` AS T1 NATURAL INNER JOIN `cleaningType` AS T2) CROSS JOIN `student` AS T3 NATURAL INNER JOIN `courses` AS T4)
-  WHERE
-    T1.year_month=%(y_m)s AND T1.day=%(day)s AND T2.cleaningType='monthly'
-    AND T3.grade=%(grade)s AND T4.course=%(course)s AND T3.name=%(name)s;
-'''
+  INSERT_CLEANING_DUTY = insertselectsql(*insert, wselect)
+  INSERT_CLEANING_DUTY_MONTHLY = insertselectsql(*insert, mselect)
 
-  ope.query(sql.INSERT_CLEANING, commit=False, args=wtargs, many=True, prepared=True)
-  ope.query(sql.INSERT_CLEANING_MONTHLY, commit=False, args=mtargs, many=True, prepared=True)
-  ope.query(sql.INSERT_CLEANING_DUTY, commit=False, args=wdtargs, many=True, prepared=True)
-  ope.query(sql.INSERT_CLEANING_DUTY_MONTHLY, commit=True, args=mdtargs, many=True, prepared=True)
+  ope.query(INSERT_CLEANING, commit=False, args=wtargs, many=True, prepared=True)
+  ope.query(INSERT_CLEANING_MONTHLY, commit=False, args=mtargs, many=True, prepared=True)
+  ope.query(INSERT_CLEANING_DUTY, commit=False, args=wdtargs, many=True, prepared=True)
+  ope.query(INSERT_CLEANING_DUTY_MONTHLY, commit=True, args=mdtargs, many=True, prepared=True)
   # if these query fails, it will be rollback
 
   return HTTP_STAT(200)

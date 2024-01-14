@@ -291,8 +291,8 @@ class InsertSelectSQL(InsertSQL):
     if self.ondupulicate:
       cols = self.select.columns
       _c = reduce(lambda a, x: f'{a}, {x}', cols[1:], str(cols[0]))
-      b_c = f'`{self.columns[0].getName()}`=nwcol.{cols[0].getName()}'
-      upcol = reduce(lambda a, x: f'{a}, `{x[0].getName()}`=nwcol.{x[1].getName()}', zip(self.columns[1:], cols[1:]), b_c)
+      b_c = f'`{self.columns[0].getName()}`=nwcol.{cols[0].as_name}'
+      upcol = reduce(lambda a, x: f'{a}, `{x[0].getName()}`=nwcol.{x[1].as_name}', zip(self.columns[1:], cols[1:]), b_c)
       return f'{super().__str__()} SELECT {_c} FROM ({str(self.select)}) AS nwcol ON DUPLICATE KEY UPDATE {upcol}'
     else:
       return f'{super().__str__()} {str(self.select)}'
@@ -338,21 +338,19 @@ def _convert_cond(sqlc, sqlt):
 
 # val1, val2: instance of COLUMN or VALUE. if they are not AS_VALUE or AS_COLUMN, it is converted theses
 # formula: if it is string, convert FORMULA
-def formulacond(val1, val2, formula):
+def formulacond(val1, val2, formula='='):
   vals = getVal(val1, val2, p_t='arg', p_c='ch', l=True)
   if isinstance(formula, str): formula = str2formula(formula)
   return FormulaConditions(vals, formula)
 
 def conncond(bace, connect, condfunc='formula'):
   if not isinstance(bace, BaceConditions):
-    if isinstance(condfunc, str):
-      condfunc = str2condfunc(condfunc)
+    if isinstance(condfunc, str): condfunc = str2condfunc(condfunc)
     bace = condfunc(*bace)
-  if isinstance(connect, str):
-    connect = str2connect(connect)
+  if isinstance(connect, str): connect = str2connect(connect)
   return ConnectConditions(bace, connect)
 
-def sqlcond(bace=None, *conn_conds, condfunc='formula'):
+def sqlcond(bace=None, *conn_conds, condfunc='formula', default_connect='and'):
   if bace is None:
     return SQLConditions(None, [])
   if isinstance(condfunc, str):             condfunc = str2condfunc(condfunc)
@@ -360,8 +358,13 @@ def sqlcond(bace=None, *conn_conds, condfunc='formula'):
 
   def convert_conn(c):
     if isinstance(c, ConnectConditions):    return c
-    elif isinstance(c[0], BaceConditions):  return conncond(c[0], c[1], condfunc=condfunc)
-    else:                                   return conncond(c[:3], c[3], condfunc=condfunc)
+    elif isinstance(c[0], BaceConditions):
+      if len(c) == 1:   return conncond(c[0], default_connect, condfunc=condfunc)
+      else:             return conncond(c[0], c[1], condfunc=condfunc)
+    else:
+      connect = str2connect(c[-1], e=False)
+      if connect is None: return conncond(c, default_connect, condfunc=condfunc)
+      else:               return conncond(c[:-1], connect, condfunc=condfunc)
   conn_conds = list(map(convert_conn, conn_conds))
   return SQLConditions(bace, conn_conds)
 
@@ -404,7 +407,7 @@ def sqltable(bace=None, *conns):
 def selectsql(cols, sql_table, where, default_condfunc='formula'):
   if not isinstance(sql_table, SQLTable):   sql_table = sqltable(*sql_table)
   if not isinstance(where, SQLConditions):  where = sqlcond(*where, condfunc=default_condfunc)
-  cols = getVal(*cols, l=True)
+  cols = getVal(*cols, l=True, p_t='arg')
 
   _convert_cond(where, sql_table)
   as_dict = sql_table.getAsDict()
@@ -413,10 +416,15 @@ def selectsql(cols, sql_table, where, default_condfunc='formula'):
 
   return SelectSQL(cols, sql_table, where)
 
-def insertvalsql(cols, table, vals):
-  cols = getVal(*cols)
-  vals = getVal(*vals, p_t='arg')
+def _insertsql(cols, table):
+  cols = [ c.split('.')[-1] if type(c) is str else c.getName() for c in cols ]
   table = getVal(table, t='table')
+  cols = table.getCol(*cols)
+  return cols, table
+
+def insertvalsql(cols, table, vals):
+  cols, table = _insertsql(cols, table)
+  vals = getVal(*vals, p_t='arg')
   if any([isinstance(c, ARGUMENT) for c in cols]) or any([isinstance(c, COLUMN) for c in vals]):
     raise ValueError('Value error in insertvalsql')
 
@@ -426,8 +434,7 @@ def insertvalsql(cols, table, vals):
   return InsertValueSQL(table, cols, vals)
 
 def insertselectsql(cols, table, select):
-  cols = getVal(*cols)
-  table = getVal(table, t='table')
+  cols, table = _insertsql(cols, table)
   if not isinstance(select, SelectSQL): select = selectsql(*select)
   if any([isinstance(c, ARGUMENT) for c in cols]): raise ValueError('Value error in insertvalsql')
 
