@@ -1,18 +1,18 @@
-from .. import app, bcrypt
-from ..prosses import IotProssesing
-from ..DBcontrol import (
+from application import app, bcrypt
+from application.page import catchError, HTTP_STAT
+from application.page.prosses import IotProssesing
+from application.DBcontrol import (
   MysqlOperator,
-  default_ope as ope
+  default_ope,
   stData,
   getStName,
   getStId,
   getClData,
-  get_val,
+  getVal,
   selectsql,
   sqltable,
   sqlcond
 )
-from . import catchError, HTTP_STAT
 from flask import request, jsonify, abort, session, send_file
 import re
 import json
@@ -25,7 +25,7 @@ import json
 @catchError
 def root():
   stmt = selectsql([['IoT_IP.IoTID', 'T', 'IP']], [['IoT_IP', 'T']], [['IoT_IP.IoTIP', 'IP', '=']])
-  IoT_id = ope.query(str(stmt), args={'IP': str(request.remote_addr)}, prepared=True)
+  IoT_id = default_ope.query(str(stmt), args={'IP': str(request.remote_addr)}, prepared=True)
 
   if len(IoT_id) != 1:
     if not IoT_id:
@@ -39,7 +39,7 @@ def root():
   stat = data_prossesing(IoT_id, request.get_data())
   table = getVal('IoT_Data', t='table')
   stmt = insertvalsql(table.getCol('IoTID', 'dataStatus'), table, ['ID', 'stat'])
-  ope.query(stmt, commit=True, args={'ID': IoT_id, 'stat':stat}, prepared=True)
+  default_ope.query(stmt, commit=True, args={'ID': IoT_id, 'stat':stat}, prepared=True)
   return jsonify({'stat': 'success', 'data': stat}), 200
 
 # Set student password
@@ -56,7 +56,7 @@ def register_user():
 
   if res is None: return HTTP_STAT(400)
     
-  ope.query('UPDATE student SET pass=%(pass)s WHERE studentID=%(stID)s;', commit=True, args={ 'pass': bcrypt.generate_password_hash(password), 'stID': studentId }, prepared=True)
+  default_ope.query('UPDATE student SET pass=%(pass)s WHERE studentID=%(stID)s;', commit=True, args={ 'pass': bcrypt.generate_password_hash(password), 'stID': studentId }, prepared=True)
 
   session["studentId"] = studentId
   return jsonify({"studentId": studentId}), 200
@@ -103,7 +103,7 @@ def get_current_user():
 def dashboad():
   GET_DASHBOARD = " SELECT T1.IoTID, T1.dataStatus FROM ( `IoT_Data` AS T1 NATURAL INNER JOIN ( SELECT T3.IoTID, MAX(T3.time) AS 'time' FROM `IoT_Data` AS T3 GROUP BY T3.IoTID) AS T2);"
 
-  res = ope.query(GET_DASHBOARD, dictionary=True)
+  res = default_ope.query(GET_DASHBOARD, dictionary=True)
 
   def getdata(purpos, place):
     if purpos == 'PB':
@@ -136,7 +136,7 @@ def add_rollcall():
   except (KeyError, TypeError) as e:
     return HTTP_STAT(400)
 
-  rStID = getStudentID(ope, rSt)
+  rStID = getStudentID(default_ope, rSt)
   args = [
     { 'date': f'{year_month}-{td["day"]}',
       'rStID': rStID,
@@ -150,7 +150,7 @@ def add_rollcall():
   stmt = insertselectsql(['dormitoryID', 'studentID', 'day', 'registeredStudentID'], 'rollCall', select)
   stmt = str(stmt).replace('%(date)s', "STR_TO_DATE(%(date)s, '%Y-%m-%d')")
 
-  ope.query(stmt, commit=True, args=args, many=True, prepared=True)
+  default_ope.query(stmt, commit=True, args=args, many=True, prepared=True)
   return HTTP_STAT(200)
 
 # insert cleaning
@@ -163,7 +163,7 @@ def add_cleaning():
     dormitory = request.json['dormitory']
     wCTD = request.json['weeklyCleaningTableData']
     mCTD = request.json['monthlyCleaningTableData']
-    rStID = getStudentID(ope, rSt)
+    rStID = getStudentID(default_ope, rSt)
   except KeyError as e:
     return HTTP_STAT(400)
 
@@ -222,10 +222,10 @@ WHERE T1.cleaningType='monthly' AND NOT EXISTS(SELECT * FROM `cleaning` AS T WHE
   INSERT_CLEANING_DUTY = insertselectsql(*insert, wselect)
   INSERT_CLEANING_DUTY_MONTHLY = insertselectsql(*insert, mselect)
 
-  ope.query(INSERT_CLEANING, commit=False, args=wtargs, many=True, prepared=True)
-  ope.query(INSERT_CLEANING_MONTHLY, commit=False, args=mtargs, many=True, prepared=True)
-  ope.query(INSERT_CLEANING_DUTY, commit=False, args=wdtargs, many=True, prepared=True)
-  ope.query(INSERT_CLEANING_DUTY_MONTHLY, commit=True, args=mdtargs, many=True, prepared=True)
+  default_ope.query(INSERT_CLEANING, commit=False, args=wtargs, many=True, prepared=True)
+  default_ope.query(INSERT_CLEANING_MONTHLY, commit=False, args=mtargs, many=True, prepared=True)
+  default_ope.query(INSERT_CLEANING_DUTY, commit=False, args=wdtargs, many=True, prepared=True)
+  default_ope.query(INSERT_CLEANING_DUTY_MONTHLY, commit=True, args=mdtargs, many=True, prepared=True)
   # if these query fails, it will be rollback
 
   return HTTP_STAT(200)

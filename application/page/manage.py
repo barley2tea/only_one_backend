@@ -1,5 +1,20 @@
-from application.DBcontrol import *
 from application import app
+from application.page import catchError, HTTP_STAT
+from application.exception import RequestKeyError
+from application.DBcontrol import (
+  default_ope,
+  JOIN,
+  getVal,
+  selectsql,
+  insertvalsql,
+  insertselectsql,
+  getStIds,
+  getClData,
+  getClId,
+  setCleaningStat
+)
+from flask import request, jsonify
+import json
 import re
 
 def _get_cleaning_args(j, default_remove=True):
@@ -16,8 +31,6 @@ def _get_cleaning_args(j, default_remove=True):
   if not res:
     raise RequestKeyError('_get_cleaning_args')
   return { k:v for (k, v) in res.items() if v is not None } if default_remove else res
-
- return None
 
 def _manage_getarg(getarg):
   args = _get_cleaning_args(request.json)
@@ -66,8 +79,8 @@ def _manage_getarg(getarg):
   res = default_ope.query(str(stmt), args=arg, prepared=True, dictionary=True)
   def _response_data(res):
     ret = { k: v for (k, v) in res.items() if k not in ('stCo', 'stGr', 'stNa', 'agGr', 'agCo', 'agNa')}
-    ret['student'] = f"{res['stGr']}{res['stCo']}{res{'stNa'}}" if res['stGr'] is not None else None
-    if 'agGr' in res.keys(): ret['agent'] = f"{res['agGr']}{res['agCo']}{res{'agNa'}}" if res['agGr'] is not None else None
+    ret['student'] = f"{res['stGr']}{res['stCo']}{res['stNa']}" if res['stGr'] is not None else None
+    if 'agGr' in res.keys(): ret['agent'] = f"{res['agGr']}{res['agCo']}{res['agNa']}" if res['agGr'] is not None else None
     return ret
 
   res = list(map(_response_data, res))
@@ -82,7 +95,7 @@ def manage_getcleaningid(cltype):
     res = getClData(getVal(['cleaning.cleaningID', 'celaningId'], p_c='as', l=True), **args)
     if not res: return HTTP_STAT(400)
     return jsonify(res[0] if len(res) == 1 else res)
-  elif cltype == 'special'
+  elif cltype == 'special':
     res = getClData(getVal(['cleaning.cleaningID', 'celaningId'], ['cleaning.place', 'place'], p_c='as', l=True), **args)
     if not res: return HTTP_STAT(400)
     return jsonify({'data': res[0] if len(res) == 1 else res}), 200

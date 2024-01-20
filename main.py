@@ -1,9 +1,13 @@
 
-# from application import app
-import application
+from application import app
+from application.bot import bots
+
+import application.page.api
+import application.page.manage
+
+import application.bot.switch_bot
 
 
 if __name__ == '__main__':
-  pass
-  # bots.all_start()
-  # app.run(port=5500)
+  bots.all_start()
+  app.run(port=5500)

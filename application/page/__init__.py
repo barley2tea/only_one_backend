@@ -17,7 +17,7 @@ def catchError(func=None, req_json=False):
       except RequestException as e:
         app.logger.debug(str(e))
         return HTTP_STAT(400)
-    wrapper.__name__ = func.__name__
+    wrapper.__name__ = _func.__name__
     return wrapper
   return _catchError if func is None else _catchError(func)
 
@@ -35,4 +35,4 @@ def HTTP_STAT(stat):
           (jsonify({'error': 'Not Found'}), 404) if stat == 404 else \
           (jsonify({'error': 'Internal Server Error'}), 500)
 
-__all__ = ['api', 'test']
+__all__ = ['api', 'manage', 'test']
