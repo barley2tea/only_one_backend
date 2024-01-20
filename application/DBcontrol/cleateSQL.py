@@ -47,6 +47,18 @@ class FormulaConditions(BaceConditions):
     v = self.get_vals()
     return f'{str(v[0])}{formula2str(self.formula)}{str(v[1])}'
 
+# Conditions that is always True
+@dataclass
+class TrueConditions(BaceConditions):
+  vals: list[VALUE] = field(init=False, default_factory=list)
+
+  def __post_init__(self):
+    super().__post_init__()
+
+  def __str__(self):
+    return 'TRUE'
+    
+
 #-----------------------------------------------
 
 @dataclass
@@ -66,7 +78,7 @@ class SQLConditions:
 
   def __post_init__(self):
     if self.bace_cond is None:
-      self.bace_cond = 1
+      self.bace_cond = TrueConditions()
       self.tables = set()
     elif not isinstance(self.bace_cond, BaceConditions):
       raise ValueError(f"{type(self.bace_cond)}")
@@ -88,17 +100,17 @@ class SQLConditions:
   def append(self, cond, condfunc='formula'):
     if not isinstance(cond, ConnectConditions):
       cond = conncond(cond[:-1], cond[-1], condfunc=condfunc)
-    if type(self.bace_cond) is int:
+    if isinstance(self.bace_cond, TrueConditions):
       self.bace_cond = cond.cond
     else:
       self.connect_conds.append(cond)
 
-  def expand(self, cons, cond_type='formula'):
+  def extend(self, cons, cond_type='formula'):
     [ self.append(con, cond_type) for con in cons ]
 
   def connect(self, val, contype):
     self.append([val.bace_cond, contype])
-    self.expand(val.connect_conds)
+    self.extend(val.connect_conds)
   
   def get_include_table(self):
     return reduce(lambda a, x: a.union(x.cond.get_include_table()), self.connect_conds, self.bace_cond.get_include_table())
@@ -161,14 +173,14 @@ class SQLTable:
     self.connect_tables.append(a)
       
 
-  def expand(self, cons:list):
+  def extend(self, cons:list):
     [ self.append(con) for con in cons ]
 
   def connect(self, val, con, on):
     if type(val) is not SQLTable:
       raise TypeError('val is not SQLTable')
     self.append(val.bace_table, con, on)
-    self.expand(val.connect_tables)
+    self.extend(val.connect_tables)
 
   def getTables(self):
     if self.bace_table is None: return []
@@ -221,7 +233,8 @@ class SelectSQL:
     # check and add column_as_dict
     for c in self.columns:
       if isinstance(c, CH_COLUMN):  name = c.ch_name
-      elif isinstance(c, COLUMN):   name = c.getTable().name
+      elif isinstance(c, COLUMN):   name = c.getTableName()
+      else:                         continue
       if name not in table_names:   raise ValueError(f'non-existent table: {name}')
 
   def __str__(self):
@@ -233,6 +246,7 @@ class InsertSQL:
   table:  TABLE
   columns:  list[COLUMN]
   ondupulicate: bool = field(default=False, init=False)
+  update_columns: str = field(init=False, default='')
 
   def __post_init__(self):
     isvalue(self.table, t='table')
@@ -249,6 +263,13 @@ class InsertSQL:
 
   def set_isupdate(self, b:bool):
     self.ondupulicate = b
+  def setIsUpdate(self, b:bool):
+    self.ondupulicate = b
+
+  def setUpdateCol(self, s:str, b:bool=None):
+    self.update_columns = s
+    if b is not None: self.ondupulicate = b
+
 
 @dataclass
 class InsertValueSQL(InsertSQL):
@@ -262,9 +283,12 @@ class InsertValueSQL(InsertSQL):
 
   def __str__(self):
     if self.ondupulicate:
-      b_c = f'`{self.columns[0].getName()}`=nwcol.{self.args[0].getName()}'
-      key_update = reduce(lambda a, x: f'{a}, `{x[0].getName()}`=nwcol.{x[1].getName()}', zip(self.columns[1:], self.args[1:]), b_c)
-      return f'{self.show()} AS nwcol ON DUPLICATE KEY UPDATE {key_update}'
+      if self.update_columns:
+        return f'{self.show()} AS nwcol ON DUPLICATE KEY UPDATE {self.update_columns}'
+      else:
+        b_c = f'`{self.columns[0].getName()}`=nwcol.{self.columns[0].getName()}'
+        key_update = reduce(lambda a, x: f'{a}, `{x.getName()}`=nwcol.{x.getName()}', self.columns[1:], b_c)
+        return f'{self.show()} AS nwcol ON DUPLICATE KEY UPDATE {key_update}'
     else:
       return self.show()
 
@@ -290,10 +314,15 @@ class InsertSelectSQL(InsertSQL):
   def __str__(self):
     if self.ondupulicate:
       cols = self.select.columns
-      _c = reduce(lambda a, x: f'{a}, {x}', cols[1:], str(cols[0]))
-      b_c = f'`{self.columns[0].getName()}`=nwcol.{cols[0].as_name}'
-      upcol = reduce(lambda a, x: f'{a}, `{x[0].getName()}`=nwcol.{x[1].as_name}', zip(self.columns[1:], cols[1:]), b_c)
-      return f'{super().__str__()} SELECT {_c} FROM ({str(self.select)}) AS nwcol ON DUPLICATE KEY UPDATE {upcol}'
+      _c = reduce(lambda a, x: f'{a}, nwcol.{x.as_name}', cols[1:], f'nwcol.{cols[0].as_name}')
+      # ret = f'{self.show()} SELECT {_c} FROM ({str(self.select)}) AS nwcol ON DUPLICATE KEY UPDATE'
+      ret = f'{self.show()} SELECT * FROM ({str(self.select)}) AS nwcol ON DUPLICATE KEY UPDATE'
+      if self.update_columns:
+        return f'{ret} {self.update_columns}'
+      else:
+        b_c = f'`{self.columns[0].getName()}`=nwcol.{cols[0].as_name}'
+        upcol = reduce(lambda a, x: f'{a}, `{x[0].getName()}`=nwcol.{x[1].as_name}', zip(self.columns[1:], cols[1:]), b_c)
+        return f'{ret} {upcol}'
     else:
       return f'{super().__str__()} {str(self.select)}'
 
@@ -373,6 +402,7 @@ def conntable(table, join, on=None, on_condfunc='formula'):
   isvalue(table, t='table')
   if type(join) == str: join = str2join(join)
   if on is not None and not isinstance(on, SQLConditions):
+    if type(on) not in (tuple, list): on = [on]
     on = sqlcond(*on, condfunc=on_condfunc)
   return ConnectTable(table, join, on)
   
@@ -405,6 +435,9 @@ def sqltable(bace=None, *conns):
   return SQLTable(bace.table, conns)
 
 def selectsql(cols, sql_table, where, default_condfunc='formula'):
+  # print(cols)
+  # print(sql_table)
+  # print(where)
   if not isinstance(sql_table, SQLTable):   sql_table = sqltable(*sql_table)
   if not isinstance(where, SQLConditions):  where = sqlcond(*where, condfunc=default_condfunc)
   cols = getVal(*cols, l=True, p_t='arg')

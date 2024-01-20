@@ -1,18 +1,31 @@
 
 from mysql.connector import Error
-from .. import app
-from flask import jsonify
+from application import app
+from application.exception import *
+from flask import jsonify, request
 
-def catchError(func):
-  def wrapper(*args, **kwargs):
-    try:
-      return func(*args, **kwargs)
-    except Error as e:
-      app.logger.warning(str(e))
-      return jsonify({'error': 'SQLError'}), 400
-  wrapper.__name__ = func.__name__
-  return wrapper
 
+def catchError(func=None, req_json=False):
+  def _catchError(_func):
+    def wrapper(*args, **kwargs):
+      if req_json and request.json is None:  return HTTP_STAT(400)
+      try:
+        return _func(*args, **kwargs)
+      except Error as e:
+        app.logger.warning(str(e))
+        return jsonify({'error': 'SQLError'}), 400
+      except RequestException as e:
+        app.logger.debug(str(e))
+        return HTTP_STAT(400)
+    wrapper.__name__ = func.__name__
+    return wrapper
+  return _catchError if func is None else _catchError(func)
+
+def getReqJson(k):
+  try:
+    return request.json[k]
+  except KeyError:
+    raise RequestKeyError(k)
 
 def HTTP_STAT(stat):
   return  (jsonify({'state': 'success'}), 200) if stat == 200 else \

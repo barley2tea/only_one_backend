@@ -135,7 +135,9 @@ class TABLE(VALUE):
   def getTable(self):     return self
   def getTableName(self): return self.name
   def show(self):         return f'`{self.name}`'
-  def getCol(self, *cols): return [ COLUMN(f'{self.name}.{c}') for c in cols ]
+  def getCol(self, *cols, l=False):
+    ret = [ COLUMN(f'{self.name}.{c}') for c in cols ]
+    return ret if len(ret) != 1 or l else ret[0]
 @dataclass(frozen=True)
 class COLUMN(VALUE):
   def __post_init__(self):
@@ -163,7 +165,9 @@ class AS_TABLE(AS_VALUE, TABLE):
   def __post_init__(self):
     TABLE.__post_init__(self)
     AS_VALUE.__post_init__(self)
-  def getCol(self, cols):  return [ CH_COLUMN(f'{self.name}.{c}', self.as_name) for c in cols ]
+  def getCol(self, *cols, l=False):
+    ret = [ CH_COLUMN(f'{self.name}.{c}', self.as_name) for c in cols ]
+    return ret if len(ret) != 1 or l else ret[0]
 @dataclass(frozen=True)
 class AS_COLUMN(AS_VALUE, COLUMN):
   def __post_init__(self):
