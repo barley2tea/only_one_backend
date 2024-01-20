@@ -8,8 +8,8 @@ This is flask project.
   - e.g. :`$ pip install -r requirements.txt`
 3. Add database to mysql.
   - `test.sql` contains dummy data for testing
-  - e.g. :`mysql -u <username> -p<password> -h <host> <databasename> < <product.sql or test.sql>`
-4. Create a .env file and set the following environment variables
+  - e.g. :`$ mysql -u <username> -p<password> -h <host> <databasename> < <product.sql or test.sql>`
+4. Create a `.env` file and set the following environment variables
 
 | variable | explanation |
 | --- | --- |
