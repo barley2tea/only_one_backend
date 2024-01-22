@@ -16,6 +16,7 @@ This is flask project.
 | DB\_CONFIG\_JSON | Path of json file with `user`, `host`, `database` and `password` elements that connects to mysql by default |
 | SWITCHBOT\_CONFIG\_JSON | Path of switchbot configuration json file |
 | FLASK\_CONFIGURATION | Configuration class name of flask. Choose from `application/config.py` |
+| FRONTEND\_URL | URL of frontend |
 
 ## Getting Started
 Run `python main.py` or use uwsgi
