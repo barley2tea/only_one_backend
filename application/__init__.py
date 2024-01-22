@@ -11,6 +11,6 @@ app.config.from_object(f'application.config.{os.getenv("FLASK_CONFIGURATION", "D
 
 import application.log
 
-CORS(app, resources={r'/app/*' : {'origins': ['http://mmm-foktm.ishikawa.kosen-nct.ac.jp'], 'methods': ['GET', 'POST']}})
+CORS(app, supports_credentials=True, resources={r'/api/*' : {'origins': os.getenv("FRONTEND_DOMAIN", "http://127.0.0.1:3000"), 'methods': ['GET', 'POST']}})
 bcrypt = Bcrypt(app)
 

@@ -23,9 +23,9 @@ APP_LOG_FORMAT = '[%(asctime)s] %(levelname)-8s %(name)s in %(module)s %(remote_
 
 class AppLogFormatter(logging.Formatter):
   def format(self, record):
-    if has_request_context():
-      record.url = request.url
-      record.remote_addr = request.remote_addr
+    if flask.has_request_context():
+      record.url = flask.request.url
+      record.remote_addr = flask.request.remote_addr
     else:
       record.url = '-'
       record.remote_addr = '-'
@@ -71,7 +71,6 @@ def _custom_log_request(self, code="-", size="-"):
   )
 
 WSGIRequestHandler.log_request = _custom_log_request
-
 
 
 

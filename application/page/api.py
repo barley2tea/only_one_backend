@@ -7,6 +7,7 @@ from application.DBcontrol import (
   stData,
   getStName,
   getStId,
+  getStData,
   getClData,
   getVal,
   selectsql,
@@ -71,7 +72,7 @@ def login():
   except (TypeError, KeyError) as e:
     return HTTP_STAT(400)
 
-  res = getStData(['student.pass', 'student.grade', 'courses.course, student.name'], stId=stId)
+  res = getStData(['student.pass', 'student.grade', 'courses.course', 'student.name'], stId=stId)
 
   if not res: return HTTP_STAT(401)
   res = res[0]

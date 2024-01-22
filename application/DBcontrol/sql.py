@@ -94,7 +94,7 @@ def getStData(select_col, ope=default_ope, key_is_colname=True, dictionaly=True,
     args[key] = kwargs[key]
 
   if 'stId' in kwargs.keys():
-    append_tables('stId', COL_LIST('stId'))
+    append_tables('stId', COL_LIST['stId'])
   else:
     [ append_tables(k, COL_LIST.get(k, None)) for k in kwargs.keys() ]
 
