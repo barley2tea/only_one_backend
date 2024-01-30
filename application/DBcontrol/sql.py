@@ -80,7 +80,7 @@ def _select_col_as(col, key_is_colname):
 
 def getStData(select_col, ope=default_ope, key_is_colname=True, dictionaly=True, **kwargs):
   conds = sqlcond()
-  tables = sqltable('student', ['dormitoryBelong', JOIN.NATURAL_INNER, None])
+  tables = sqltable('student')
   args = {}
   if type(select_col) not in [list, tuple]: select_col = [select_col]
 
@@ -99,7 +99,6 @@ def getStData(select_col, ope=default_ope, key_is_colname=True, dictionaly=True,
     [ append_tables(k, COL_LIST.get(k, None)) for k in kwargs.keys() ]
 
     if 'dorm' in kwargs.keys():
-      tables.append(getVal('dormitoryBelong', t='table'))
       if 'floor' in kwargs.keys():  append_tables('floor', 'dormitoryPlace.floor')
       else:                         tables.append(['dormitoryPlace', JOIN.NATURAL_INNER, None])
       append_tables('dorm', 'dormitory.dormitory')
@@ -134,7 +133,8 @@ def getClData(select_col, ope=default_ope, key_is_colname=True, get_response=Tru
 
 
   conds = sqlcond()
-  tables = sqltable('cleaning')
+  cl_t = getVal(['cleaning', 'Tcl'], t='as_table')
+  tables = sqltable(cl_t)
   args = {}
   if type(select_col) not in [list, tuple]: select_col = [select_col]
 
@@ -152,26 +152,39 @@ def getClData(select_col, ope=default_ope, key_is_colname=True, get_response=Tru
   if 'clId' in kwargs.keys():
     append_tables('clId', 'cleaning.cleaningID')
   else:
-    [ append_tables(k, COL_LIST.get(k, None)) for k in kwargs.keys() ]
-
     if 'dorm' in kwargs.keys():
       if 'floor' in kwargs.keys():  append_tables('floor', 'dormitoryPlace.floor')
       else:                         tables.append([getVal('dormitoryPlace', t='table'), JOIN.NATURAL_INNER])
       append_tables('dorm', 'dormitory.dormitory')
     elif 'floor' in kwargs.keys():
       append_tables('floor', 'dormitoryPlace.floor')
-    
-  add_table = reduce(lambda a, x: a | {x.getTable().name}, select_col, set()) - set(tables.getTableNameList(ch=False))
 
-  if 'dormitory' in add_table and 'dormitoryPlace' not in tables.getTableNameList(ch=False):
-    tables.append(['dormitoryPlace', JOIN.NATURAL_LEFT_OUTER, None])
-    add_table.discard('dormitoryPlace')
-  if 'teacher' in add_table and 'teacherReport' not in tables.getTableNameList(ch=False):
-    tables.append(['teacherReport', JOIN.NATURAL_LEFT_OUTER, None])
-    add_table.discard('teacherReport')
+    [ append_tables(k, COL_LIST.get(k, None)) for k in kwargs.keys() ]
+
+  add_table = reduce(lambda a, x: a | {x.getTable().name}, select_col, set()) - set(tables.getTableNameList(ch=False))
+  table_name_list = tables.getTableNameList(ch=False)
+
+    
+  def get_on(c1, c2, s='cleaningID'):
+    c1, c2 = getVal(c1, c2, p_t='table')
+    return [formulacond(c1.getCol(s), c2.getCol(s), '=')]
+  def natural_join(c, j, i=False):
+    if c in add_table or i:
+      tables.append([c, JOIN.NATURAL | j, None])
+      add_table.discard(c)
+
+  natural_join('cleaningType', JOIN.INNER)
+  natural_join('dormitoryPlace', JOIN.LEFT_OUTER, 'dormitory' in add_table and 'dormitoryPlace' not in table_name_list)
+  natural_join('dormitory', JOIN.LEFT_OUTER)
+  if 'teacher' in add_table:
+    if 'teacherReport' not in table_name_list:
+      tables.append(['teacherReport', JOIN.LEFT_OUTER, get_on('teacherReport', cl_t, 'cleaningID')])
+      add_table.discard('teacherReport')
+    tables.append(['teacher', JOIN.LEFT_OUTER, get_on('teacherReport', 'teacher', 'teacherID')])
+    add_table.discard('teacher')
 
   for t in add_table:
-    tables.append([t, JOIN.NATURAL_LEFT_OUTER, None])
+    tables.append([t, JOIN.LEFT_OUTER, get_on(t, cl_t, 'cleaningID')])
 
   if get_response:
     stmt = selectsql(select_col, tables, conds)

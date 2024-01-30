@@ -42,7 +42,6 @@ def _manage_getarg(getarg):
       ['cleaning.times', 'cleanTimes'],
       ['dormitory.dormitory', 'dormitory'],
       ['dormitoryPlace.floor', 'floor'],
-      ['cleaningStatus.cleaningStatus', 'status'],
       ['cleaning.place', 'place']
     ]
     if getarg >= 1:
@@ -61,18 +60,21 @@ def _manage_getarg(getarg):
 
   select_col, tables, conds, arg = getClData(col, get_response=False, **args)
 
-  def _get_on(c1, c2, s):
+  def _get_on(c1, c2, s='cleaningID'):
+    c1, c2 = getVal(c1, c2, p_t='table')
     return formulacond(c1.getCol(s), c2.getCol(s), '=')
 
   _stcol = getVal(
     ['student.grade', 'stSt', 'stGr'], ['courses.course', 'couSt', 'stCo'], ['student.name', 'stSt', 'stNa'],
     ['student.grade', 'stAg', 'agGr'], ['courses.course', 'couAg', 'agCo'], ['student.name', 'stAg', 'agNa'],
-    t='as_ch_column')
+    ['cleaningStatus.cleaningStatus', 'status'],
+    p_c='as')
   select_col.extend(_stcol)
   _nt = getVal(['cleaningDuty', 'clDt'], ['cleaningDutyAgent', 'clDA'], ['student', 'stSt'], ['courses', 'couSt'], ['student', 'stAg'], ['courses', 'couAg'], t='as_table')
   _on = [_get_on(*a) for a in ([_nt[2], _nt[0], 'studentID'], [_nt[3], _nt[2], 'courseID'], [_nt[4], _nt[1], 'studentID'], [_nt[5], _nt[4], 'courseID'])]
-  tables.extend([[_nt[0], JOIN.NATURAL_LEFT_OUTER], [_nt[1], JOIN.NATURAL_LEFT_OUTER]])
+  tables.extend([[_nt[0], JOIN.LEFT_OUTER, _get_on(_nt[0], 'cleaning')], [_nt[1], JOIN.LEFT_OUTER, _get_on(_nt[1], _nt[0], 'cleaningDutyID')]])
   tables.extend([ [_nt[i+2], JOIN.LEFT_OUTER, _on[i]] for i in range(len(_on)) ])
+  tables.append(['cleaningStatus', JOIN.NATURAL_INNER, None])
 
   stmt = selectsql(select_col, tables, conds)
   
@@ -255,7 +257,6 @@ def manage_getstudentdata():
   SELECT CONCAT(CONVERT(T0.grade, CHAR(1)), T4.course, T0.name), T2.floor
   FROM(
     `student` AS T0
-    NATURAL INNER JOIN `dormitoryBelong` AS T1
     NATURAL INNER JOIN `dormitoryPlace` AS T2
     NATURAL INNER JOIN `dormitory` AS T3
     NATURAL INNER JOIN `courses` AS T4

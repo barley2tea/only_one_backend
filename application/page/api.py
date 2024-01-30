@@ -60,6 +60,7 @@ def register_user():
   default_ope.query('UPDATE student SET pass=%(pass)s WHERE studentID=%(stID)s;', commit=True, args={ 'pass': bcrypt.generate_password_hash(password), 'stID': studentId }, prepared=True)
 
   session["studentId"] = studentId
+  app.logger.info(f"setting password of '{studentId}'")
   return jsonify({"studentId": studentId}), 200
 
 # login and add session['studentId']

@@ -1,5 +1,5 @@
 from flask import request, jsonify, abort, session, send_file
-from application.DBcontroller import ope, MysqlOperator
+from application.DBcontrol import default_ope as ope, MysqlOperator
 from application.page import catchError
 from application import app
 

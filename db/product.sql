@@ -1,3 +1,7 @@
+DROP DATABASE testDB;
+CREATE DATABASE testDB;
+USE testDB;
+
 CREATE TABLE `dormitory` (
   `dormitoryID` TINYINT UNSIGNED PRIMARY KEY,
   `dormitory` VARCHAR(4) UNIQUE NOT NULL
@@ -65,25 +69,17 @@ CREATE TABLE `student` (
   `name` VARCHAR(128) NOT NULL,
   `pass` VARCHAR(256),
   `access` BOOLEAN NOT NULL DEFAULT 0,
-  FOREIGN KEY (`courseID`) REFERENCES `courses`(`courseID`) ON UPDATE CASCADE,
-  UNIQUE (`grade`, `courseID`, `name`)
-);
-
-CREATE TABLE `penalty` (
-  `studentID` VARCHAR(8) PRIMARY KEY,
+  `dormitoryPlaceID` TINYINT UNSIGNED,
+  `studentStatusID` TINYINT UNSIGNED NOT NULL DEFAULT 1,
   `wcma` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `mcma` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `scma` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-  FOREIGN KEY (`studentID`) REFERENCES `student`(`studentID`) ON DELETE CASCADE ON UPDATE CASCADE
+  FOREIGN KEY (`courseID`) REFERENCES `courses`(`courseID`) ON UPDATE CASCADE,
+  FOREIGN KEY (`studentStatusID`) REFERENCES `studentStatus`(`studentStatusID`) ON UPDATE CASCADE,
+  FOREIGN KEY (`dormitoryPlaceID`) REFERENCES `dormitoryPlace`(`dormitoryPlaceID`) ON UPDATE CASCADE,
+  UNIQUE (`grade`, `courseID`, `name`)
 );
 
-CREATE TABLE `dormitoryBelong` (
-  `studentID` VARCHAR(8) PRIMARY KEY,
-  `dormitoryPlaceID` TINYINT UNSIGNED,
-  `studentStatusID` TINYINT UNSIGNED DEFAULT 1,
-  FOREIGN KEY (`studentID`) REFERENCES `student`(`studentID`) ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (`studentStatusID`) REFERENCES `studentStatus`(`studentStatusID`) ON UPDATE CASCADE
-);
 
 CREATE TABLE `rollCall` (
   `rollCallID` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -135,7 +131,7 @@ CREATE TABLE `cleaningDuty` (
 CREATE TABLE `cleaningDutyAgent` (
   `cleaningDutyID` BIGINT UNSIGNED PRIMARY KEY,
   `studentID` VARCHAR(8) NOT NULL,
-  FOREIGN KEY (`cleaningDutyID`) REFERENCES `cleaningDuty`(`cleaningDutyID`) ON UPDATE CASCADE,
+  FOREIGN KEY (`cleaningDutyID`) REFERENCES `cleaningDuty`(`cleaningDutyID`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`studentID`) REFERENCES `student`(`studentID`) ON UPDATE CASCADE
 );
 
@@ -163,9 +159,9 @@ CREATE TABLE `IoT_IP` (
 );
 
 CREATE TABLE `IoT_Data` (
-  `IoTID` VARCHAR(8),
-  `time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `IoT_DataID` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `IoTID` VARCHAR(8) NOT NULL,
+  `time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `dataStatus` TINYINT UNSIGNED NOT NULL,
-  PRIMARY KEY(`IoTID`, `time`),
   FOREIGN KEY (`IoTID`) REFERENCES `IoT_IP`(`IoTID`) ON UPDATE CASCADE
 );

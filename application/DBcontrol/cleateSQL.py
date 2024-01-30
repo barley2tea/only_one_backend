@@ -167,10 +167,12 @@ class SQLTable:
       a = conntable(*a)
     if type(a.table) is TABLE:
       a.table = getAsVal(a.table, nlist=self.getTableNameList(), p_t='table', pre='T')
+
+    self._convert_val(a)
     if self.bace_table is None:
       self.bace_table = a.table
-      return
-    self.connect_tables.append(a)
+    else:
+      self.connect_tables.append(a)
       
 
   def extend(self, cons:list):
@@ -182,11 +184,13 @@ class SQLTable:
     self.append(val.bace_table, con, on)
     self.extend(val.connect_tables)
 
+  # ret = [ TABLE ]
   def getTables(self):
     if self.bace_table is None: return []
     ret = [self.bace_table]
     ret.extend([ c.table for c in self.connect_tables ])
 
+  # ret = [ch_name or name]
   def getTableNameList(self, ch=True):
     if self.bace_table is None: return []
     ret = [self.bace_table.as_name] if isinstance(self.bace_table, AS_TABLE) and ch else [self.bace_table.name]
@@ -194,19 +198,41 @@ class SQLTable:
       ret.append(c.table.as_name if isinstance(c.table, AS_TABLE) and ch else c.table.name)
     return ret
 
+  # ret = [as_name]
   def getAsNameList(self):
     ret = [self.bace_table.as_name] if isinstance(self.bace_table, AS_TABLE) else list()
     for c in filter(lambda x: type(x.table) is AS_TABLE, self.connect_tables):
       ret.append(c.table.as_name)
     return ret
-    
 
+  # ret[name] = [as_name]
   def getAsDict(self):
     ret = {self.bace_table.name: [self.bace_table.as_name]} if isinstance(self.bace_table, AS_TABLE) else dict()
     for c in filter(lambda x: isinstance(x, AS_TABLE), map(lambda x: x.table, self.connect_tables)):
       if c.name in ret.keys():  ret[c.name].append(c.as_name)
       else:                     ret[c.name] = [c.as_name]
     return ret
+
+  def _convert_val(self, conn):
+    if not isinstance(conn.table, AS_TABLE):
+      as_name_list = self.getAsNameList()
+      i = 0
+      while f'T{i}' in as_name_list:
+        i += 1
+      conn.table = getVal([conn.table, f'T{i}'], t='as_table')
+    if conn.on is not None:
+      if isinstance(conn.on.bace_cond, TrueConditions): return
+      as_dict = self.getAsDict()
+      as_dict[conn.table.getTableName()] = [conn.table.as_name]
+      def _convert(con):
+        for i, v in filter(lambda x: isinstance(x[1], COLUMN) and not isinstance(x[1], CH_COLUMN), enumerate(con.vals)):
+          ch_n = as_dict.get(v.getTableName(), [])
+          if len(ch_n) == 1:
+            v = getVal([v, ch_n[0]], p_c='ch')
+            con.vals[i] = v
+      _convert(conn.on.bace_cond)
+      [ _convert(x.cond) for x in conn.on.connect_conds ]
+
 
 # --------------------SQL-----------------------
 
