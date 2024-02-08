@@ -3,6 +3,7 @@ from werkzeug.serving import WSGIRequestHandler
 from werkzeug.urls import uri_to_iri
 import logging
 import flask
+import os
 # change WSGIRequestHandler.log_request
 
 # --handler--
@@ -31,18 +32,18 @@ class AppLogFormatter(logging.Formatter):
       record.remote_addr = '-'
     return super().format(record)
 
-
+str2logLevel = lambda x:  logging.DEBUG if x == 'debug' else logging.INFO  if x == 'info'  else logging.WARNING if x == 'warning' else logging.ERROR if x == 'error' else logging.CRITICAL if x == 'critical' else None
 
 app_handler = logging.StreamHandler()
-app_handler.setLevel(logging.INFO)
+app_handler.setLevel(str2logLevel(os.getenv('APP_LOG_LEVEL', 'info')))
 app_handler.setFormatter(AppLogFormatter(APP_LOG_FORMAT))
 
 werkzeug_handler = logging.StreamHandler()
-werkzeug_handler.setLevel(logging.INFO)
+werkzeug_handler.setLevel(str2logLevel(os.getenv('WERKZEUG_LOG_LEVEL', 'info')))
 werkzeug_handler.setFormatter(logging.Formatter(DEFAULT_LOG_FORMAT))
 
 bot_handler = logging.StreamHandler()
-bot_handler.setLevel(logging.WARNING)
+bot_handler.setLevel(str2logLevel(os.getenv('BOT_LOG_LEVEL', 'warning')))
 bot_handler.setFormatter(logging.Formatter(DEFAULT_LOG_FORMAT))
 
 app.logger.removeHandler(flask.logging.default_handler)

@@ -71,7 +71,9 @@ def login():
     stId = request.json["studentId"]
     password = request.json["password"]
   except (TypeError, KeyError) as e:
+    app.logger.debug("json error")
     return HTTP_STAT(400)
+  app.logger.debug(str(request.json))
 
   res = getStData(['student.pass', 'student.grade', 'courses.course', 'student.name'], stId=stId)
 
@@ -80,9 +82,9 @@ def login():
   if not bcrypt.check_password_hash(res['pass'], password):
     return HTTP_STAT(401)
 
-  session["studentId"] = studentId
+  session["studentId"] = stId
   account = f"{res['grade']}{res['course']}{res['name']}"
-  return jsonify({"studentId": studentId, "account": account})
+  return jsonify({"studentId": stId, "account": account})
 
 # remove session['studentId']
 @app.route('/api/logout', methods=["POST"])

@@ -6,7 +6,7 @@ COL_LIST = {
   'grade':  'student.grade',
   'course': 'courses.course',
   'name':   'student.name',
-  'stId':   'studentReport.studentID',
+  'stId':   'student.studentID',
   'dorm':   'dormitory.dormitory',
   'floor':  'dormitoryPlace.floor',
   'stStat': 'studentStatus.studentStatus',

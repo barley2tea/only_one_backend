@@ -17,6 +17,10 @@ This is flask project.
 | SWITCHBOT\_CONFIG\_JSON | Path of switchbot configuration json file |
 | FLASK\_CONFIGURATION | Configuration class name of flask. Choose from `application/config.py` |
 | FRONTEND\_URL | URL of frontend |
+| MODEL\_PATH | Path of YOLO's weight for image recognition |
+| APP\_LOG\_LEVEL | Log level of app\_logger |
+| WERKZEUG\_LOG\_LEVEL | Log level of werkzeug\_logger |
+| BOT\_LOG\_LEVEL | Log level of bot\_logger |
 
 ## Getting Started
 Run `python main.py` or use uwsgi
