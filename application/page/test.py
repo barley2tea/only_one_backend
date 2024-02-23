@@ -2,9 +2,11 @@ from flask import request, jsonify, abort, session, send_file
 from application.DBcontrol import default_ope as ope, MysqlOperator
 from application.page import catchError
 from application import app
+import os
 
-GET_DATA_SAVE_FILE = './test./get_data.txt'
-SEND_FILE_NAME = './test/send.zip'
+GET_DATA_SAVE_FILE = os.getenv('TEST_DIRECTORY', '.') + '/get_data.txt'
+SEND_FILE_NAME = os.getenv('TEST_DIRECTORY', '.') + '/send.zip'
+UPLOAD_DATA_FILE = os.getenv('TEST_DIRECTORY', '.') + '/uploaded.zip'
 
 @app.route('/test/testDB', methods=['GET'])
 def testDB():
@@ -40,7 +42,7 @@ def add_data():
 def get_data():
   if request.method=='POST':
     file = request.files['file']
-    file.save('/var/www/flask_app/test/get_data')
+    file.save(UPLOAD_DATA_FILE)
     return f'{file.filename}'
   else:
     return '''
