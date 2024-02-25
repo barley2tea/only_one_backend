@@ -8,10 +8,6 @@ GET_DATA_SAVE_FILE = os.getenv('TEST_DIRECTORY', '.') + '/get_data.txt'
 SEND_FILE_NAME = os.getenv('TEST_DIRECTORY', '.') + '/send.zip'
 UPLOAD_DATA_FILE = os.getenv('TEST_DIRECTORY', '.') + '/uploaded.zip'
 
-@app.route('/test/testDB', methods=['GET'])
-def testDB():
-  pass
-
 @app.route('/test/show_send', methods=['GET', 'POST'])
 def show_send():
   d = request.args if request.method == 'GET' else request.get_data()
@@ -42,7 +38,7 @@ def add_data():
 def get_data():
   if request.method=='POST':
     file = request.files['file']
-    file.save(UPLOAD_DATA_FILE)
+    file.save(os.getenv('TEST_DIRECTORY', '.') + '/' + file.filename)
     return f'{file.filename}'
   else:
     return '''

@@ -3,6 +3,9 @@ from application.exception import ProssesException
 from ultralytics import YOLO
 import os
 import json
+import io
+import glob
+from PIL import Image
 
 PB_model = YOLO(os.getenv('MODEL_PATH'))
 
@@ -49,6 +52,18 @@ def DR_prosses(IoT_id:str, data:bytes):
 
 def PB_prosses(IoT_id:str, data:bytes):
   if PB_model is None:  raise ProssesException('model is not include')
-  #dataのエンコード(確かjpegで送られてくる)
+
+  #test
+  if os.getenv('SAVE_IMAGE', 'False') == 'True':
+    test_dir = os.getenv('TEST_DIRECTORY', '.')
+    with open(f"{test_dir}/{len(glob.glob(test_dir))}.jpg", 'wb') as f:
+      f.write(data)
+  
+  with Image.open(io.BytesIO(data)) as pil_img:
+    img = np.asarray(pil_img)
+
+  res = PB_model(img)
+  return int((len(res) + 1) // 2)
+
 
   
