@@ -26,21 +26,31 @@ import json
 @catchError
 def root():
   stmt = selectsql([['IoT_IP.IoTID', 'T', 'IP']], [['IoT_IP', 'T']], [['IoT_IP.IoTIP', 'IP', '=']])
-  IoT_id = default_ope.query(str(stmt), args={'IP': str(request.remote_addr)}, prepared=True)
+  remote_addr = request.headers.getlist("X-Forwarded-For")[0] if request.headers.getlist("X-Forwarded-For") else request.remote_addr
+  IoT_id = default_ope.query(str(stmt), args={'IP': str(remote_addr)}, prepared=True)
 
   if len(IoT_id) != 1:
     if not IoT_id:
-      app.logger.info(f'Unauthorized access by \"/\":{request.remote_addr}')
+      app.logger.info(f'Unauthorized access by \"/\":{remote_addr}')
       return HTTP_STAT(403)
     else:
-      app.logger.error('Duplicate ID:addr[{request.remote_addr}], ID{str(IoT_id)}')
+      app.logger.error('Duplicate ID:addr[{remote_addr}], ID{str(IoT_id)}')
       return HTTP_STAT(500)
 
   IoT_id = IoT_id[0][0]
-  stat = data_prossesing(IoT_id, request.get_data())
+  request_data = request.get_data()
+  stat = data_prossesing(IoT_id, request_data)
+  if isinstance(stat, int):
+    args = {'ID': IoT_id, 'stat': stat}
+    many = False
+  else:
+    args = stat
+    many = True
   table = getVal('IoT_Data', t='table')
   stmt = insertvalsql(table.getCol('IoTID', 'dataStatus'), table, ['ID', 'stat'])
-  default_ope.query(stmt, commit=True, args={'ID': IoT_id, 'stat':stat}, prepared=True)
+
+  default_ope.query(stmt, commit=True, args=args, many=many, prepared=True)
+  app.logger.debug(f'data: "{"bytes" if len(request_data) > 100 else request_data}" stat:"{args}"')
   return jsonify({'stat': 'success', 'data': stat}), 200
 
 # Set student password
@@ -48,20 +58,18 @@ def root():
 @catchError
 def register_user():
   try:
-    studentId = request.json["studentId"]
+    stId = request.json["studentId"]
     password = request.json["password"]
   except (TypeError, KeyError) as e:
+    app.logger.debug('request json error: "{request.get_data()}"')
     return HTTP_STAT(400)
-
-  res = getStName(studentId)
-
+  res = getStName(stId)
   if res is None: return HTTP_STAT(400)
-    
-  default_ope.query('UPDATE student SET pass=%(pass)s WHERE studentID=%(stID)s;', commit=True, args={ 'pass': bcrypt.generate_password_hash(password), 'stID': studentId }, prepared=True)
-
-  session["studentId"] = studentId
-  app.logger.info(f"setting password of '{studentId}'")
-  return jsonify({"studentId": studentId}), 200
+  args = { 'pass': bcrypt.generate_password_hash(password), 'stID': stId }
+  default_ope.query('UPDATE student SET pass=%(pass)s WHERE studentID=%(stID)s;', commit=True, args=args, prepared=True)
+  session["studentId"] = stId
+  app.logger.info(f"setting password of '{stId}'")
+  return jsonify({"studentId": stId}), 200
 
 # login and add session['studentId']
 @app.route("/api/login", methods=['POST'])
@@ -71,26 +79,25 @@ def login():
     stId = request.json["studentId"]
     password = request.json["password"]
   except (TypeError, KeyError) as e:
-    app.logger.debug("json error")
+    app.logger.debug('request json error: "{request.get_data()}"')
     return HTTP_STAT(400)
-  app.logger.debug(str(request.json))
 
   res = getStData(['student.pass', 'student.grade', 'courses.course', 'student.name'], stId=stId)
-
   if not res: return HTTP_STAT(401)
   res = res[0]
-  if not bcrypt.check_password_hash(res['pass'], password):
-    return HTTP_STAT(401)
+  if not bcrypt.check_password_hash(res['pass'], password): return HTTP_STAT(401)
 
   session["studentId"] = stId
   account = f"{res['grade']}{res['course']}{res['name']}"
+  app.logger.info("login of '{stId}'")
   return jsonify({"studentId": stId, "account": account})
 
 # remove session['studentId']
 @app.route('/api/logout', methods=["POST"])
 def logout_user():
-  if session.get("studentId", False):
-    session.pop("studentId")
+  stId = session.get('studentId', False)
+  if stId: session.pop("studentId")
+  app.logger.debug('logout of "{stId}"')
   return HTTP_STAT(200)
 
 # check aleady login
@@ -105,9 +112,8 @@ def get_current_user():
 @app.route('/api/dashboard', methods=['GET'])
 @catchError
 def dashboad():
-  GET_DASHBOARD = " SELECT T1.IoTID, T1.dataStatus FROM ( `IoT_Data` AS T1 NATURAL INNER JOIN ( SELECT T3.IoTID, MAX(T3.time) AS 'time' FROM `IoT_Data` AS T3 GROUP BY T3.IoTID) AS T2);"
-
-  res = default_ope.query(GET_DASHBOARD, dictionary=True)
+  stmt = " SELECT T1.IoTID, T1.dataStatus FROM ( `IoT_Data` AS T1 NATURAL INNER JOIN ( SELECT T3.IoTID, MAX(T3.time) AS 'time' FROM `IoT_Data` AS T3 GROUP BY T3.IoTID) AS T2);"
+  res = default_ope.query(stmt, dictionary=True)
 
   def getdata(purpos, place):
     if purpos == 'PB':
@@ -155,6 +161,7 @@ def add_rollcall():
   stmt = str(stmt).replace('%(date)s', "STR_TO_DATE(%(date)s, '%Y-%m-%d')")
 
   default_ope.query(stmt, commit=True, args=args, many=True, prepared=True)
+  app.logger.info('add rollcall table: register:"{rStID}"')
   return HTTP_STAT(200)
 
 # insert cleaning
@@ -232,6 +239,7 @@ WHERE T1.cleaningType='monthly' AND NOT EXISTS(SELECT * FROM `cleaning` AS T WHE
   default_ope.query(INSERT_CLEANING_DUTY_MONTHLY, commit=True, args=mdtargs, many=True, prepared=True)
   # if these query fails, it will be rollback
 
+  app.logger.info('add cleaning table: register:"{rStID}"')
   return HTTP_STAT(200)
 
 

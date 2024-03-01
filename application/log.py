@@ -25,8 +25,9 @@ APP_LOG_FORMAT = '[%(asctime)s] %(levelname)-8s %(name)s in %(module)s %(remote_
 class AppLogFormatter(logging.Formatter):
   def format(self, record):
     if flask.has_request_context():
+      remote_addr = flask.request.headers.getlist("X-Forwarded-For")[0] if flask.request.headers.getlist("X-Forwarded-For") else flask.request.remote_addr
       record.url = flask.request.url
-      record.remote_addr = flask.request.remote_addr
+      record.remote_addr = remote_addr
     else:
       record.url = '-'
       record.remote_addr = '-'
