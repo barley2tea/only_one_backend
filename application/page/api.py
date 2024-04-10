@@ -12,7 +12,9 @@ from application.DBcontrol import (
   getVal,
   selectsql,
   sqltable,
-  sqlcond
+  sqlcond,
+  insertvalsql,
+  insertselectsql
 )
 from flask import request, jsonify, abort, session, send_file
 import re
@@ -38,7 +40,7 @@ def root():
       return HTTP_STAT(500)
 
   IoT_id = IoT_id[0][0]
-  request_data = request.get_data()
+  request_data = request.get_data() if request.json is None else request.json
   stat = data_prossesing(IoT_id, request_data)
   if isinstance(stat, int):
     args = {'ID': IoT_id, 'stat': stat}

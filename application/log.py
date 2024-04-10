@@ -35,16 +35,18 @@ class AppLogFormatter(logging.Formatter):
 
 str2logLevel = lambda x:  logging.DEBUG if x == 'debug' else logging.INFO  if x == 'info'  else logging.WARNING if x == 'warning' else logging.ERROR if x == 'error' else logging.CRITICAL if x == 'critical' else None
 
+getEnvLogLevel = lambda s, default: str2logLevel(os.getenv(s, default))
+
 app_handler = logging.StreamHandler()
-app_handler.setLevel(str2logLevel(os.getenv('APP_LOG_LEVEL', 'info')))
+app_handler.setLevel(getEnvLogLevel('APP_LOG_LEVEL', 'info'))
 app_handler.setFormatter(AppLogFormatter(APP_LOG_FORMAT))
 
 werkzeug_handler = logging.StreamHandler()
-werkzeug_handler.setLevel(str2logLevel(os.getenv('WERKZEUG_LOG_LEVEL', 'info')))
+werkzeug_handler.setLevel(getEnvLogLevel('WERKZEUG_LOG_LEVEL', 'info'))
 werkzeug_handler.setFormatter(logging.Formatter(DEFAULT_LOG_FORMAT))
 
 bot_handler = logging.StreamHandler()
-bot_handler.setLevel(str2logLevel(os.getenv('BOT_LOG_LEVEL', 'warning')))
+bot_handler.setLevel(getEnvLogLevel('BOT_LOG_LEVEL', 'warning'))
 bot_handler.setFormatter(logging.Formatter(DEFAULT_LOG_FORMAT))
 
 app.logger.removeHandler(flask.logging.default_handler)

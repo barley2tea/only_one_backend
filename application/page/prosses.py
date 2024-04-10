@@ -12,16 +12,20 @@ PB_model = YOLO(os.getenv('MODEL_PATH'))
 
 def doing_prosses(func):
   def wrapper(*args, **kwargs):
-    try:
-      pros = func(*args, **kwargs)
-    except ProssesException as e:
-      app.warning(str(e))
-      return None
+    pros = func(*args, **kwargs)
     if pros is None:
-      app.warning('No action is defined for this id')
+      app.logger.warning('No action is defined for this id')
       return None
 
-    ret = pros(*args, **kwargs)
+    try:
+      ret = pros(*args, **kwargs)
+    except ProssesException as e:
+      app.logger.warning(str(e))
+      return None
+    except Exception as e:
+      app.logger.error(str(e))
+      return None
+
     return ret
   return wrapper
 
@@ -33,18 +37,15 @@ def IotProssesing(IoT_id:str, data:str):
           DR_prosses        if IoT_id[:2] == 'DR' else None
 
 
+def SW_prosses(IoT_id:str, data:dict):
+  if not isinstance(data, dict):
+    raise ProssesException('JSON is not being sent.')
 
-def SW_prosses(IoT_id:str, data:bytes):
   PARAMETER_DICT = {'2': 3700, '3': 3000}#山は3700海は3000
-  data = json.loads(data.decode("utf-8"))['sensorValue']
-  if re.fullmatch('\d+', data):
-    data = int(data, 10)
-    return int(PARAMETER_DICT.get(IoT_id[3], 3700) > data)
-  else:
-    return 0
+  return int(PARAMETER_DICT.get(IoT_id[3], 3700) > data['sensorValue'])
  
-def DR_prosses(IoT_id:str, data:bytes):
-  data = json.loads(data.decode("utf-8"))['sensorValue']
+def DR_prosses(IoT_id:str, data:dict):
+  data = data['sensorValue']
   data = [ int(d, 10) if re.fullmatch('\d+', d) else None for d in data ]
   if None in data:
     status = [0, 0, 0]
