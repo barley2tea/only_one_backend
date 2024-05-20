@@ -55,4 +55,13 @@ def send_data():
   file = SEND_FILE_NAME
   return send_file(downloadFile, as_attachment=True, attachment_filename=fname, mimetype='application/zip')
 
+@app.route('/test/img_upload', methods=['POST'])
+def img_upload():
+  data = request.get_data()
+  if os.getenv('SAVE_IMAGE', 'False') == 'True':
+    test_dir = os.getenv('TEST_DIRECTORY', '.')
+    with open(f"{test_dir}/{len(glob.glob(test_dir))}.jpg", 'wb') as f:
+      f.write(data)
+  return jsonify({'stat': 'success'}), 200
+  
 

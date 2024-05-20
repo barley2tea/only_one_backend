@@ -33,7 +33,7 @@ def root():
 
   if len(IoT_id) != 1:
     if not IoT_id:
-      app.logger.info(f'Unauthorized access by \"/\":{remote_addr}')
+      app.logger.info(f'Unauthorized access')
       return HTTP_STAT(403)
     else:
       app.logger.error('Duplicate ID:addr[{remote_addr}], ID{str(IoT_id)}')
@@ -41,7 +41,7 @@ def root():
 
   IoT_id = IoT_id[0][0]
   request_data = request.get_data() if request.json is None else request.json
-  stat = data_prossesing(IoT_id, request_data)
+  stat = IotProssesing(IoT_id, request_data)
   if isinstance(stat, int):
     args = {'ID': IoT_id, 'stat': stat}
     many = False

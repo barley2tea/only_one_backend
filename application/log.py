@@ -25,7 +25,8 @@ APP_LOG_FORMAT = '[%(asctime)s] %(levelname)-8s %(name)s in %(module)s %(remote_
 class AppLogFormatter(logging.Formatter):
   def format(self, record):
     if flask.has_request_context():
-      remote_addr = flask.request.headers.getlist("X-Forwarded-For")[0] if flask.request.headers.getlist("X-Forwarded-For") else flask.request.remote_addr
+      x_f_header = flask.request.headers.getlist("X-Forwarded-For")
+      remote_addr = x_f_header if x_f_header else flask.request.remote_addr
       record.url = flask.request.url
       record.remote_addr = remote_addr
     else:
@@ -38,25 +39,28 @@ str2logLevel = lambda x:  logging.DEBUG if x == 'debug' else logging.INFO  if x 
 getEnvLogLevel = lambda s, default: str2logLevel(os.getenv(s, default))
 
 app_handler = logging.StreamHandler()
-app_handler.setLevel(getEnvLogLevel('APP_LOG_LEVEL', 'info'))
+app_handler.setLevel(logging.DEBUG)
 app_handler.setFormatter(AppLogFormatter(APP_LOG_FORMAT))
 
 werkzeug_handler = logging.StreamHandler()
-werkzeug_handler.setLevel(getEnvLogLevel('WERKZEUG_LOG_LEVEL', 'info'))
+werkzeug_handler.setLevel(logging.DEBUG)
 werkzeug_handler.setFormatter(logging.Formatter(DEFAULT_LOG_FORMAT))
 
 bot_handler = logging.StreamHandler()
-bot_handler.setLevel(getEnvLogLevel('BOT_LOG_LEVEL', 'warning'))
+bot_handler.setLevel(logging.DEBUG)
 bot_handler.setFormatter(logging.Formatter(DEFAULT_LOG_FORMAT))
 
 app.logger.removeHandler(flask.logging.default_handler)
 app.logger.addHandler(app_handler)
+app.logger.setLevel(getEnvLogLevel('APP_LOG_LEVEL', 'info'))
 
 werkzeug_logger = logging.getLogger('werkzeug')
 werkzeug_logger.addHandler(werkzeug_handler)
+werkzeug_logger.setLevel(getEnvLogLevel('WERKZEUG_LOG_LEVEL', 'info'))
 
 bot_logger = logging.getLogger('bot')
 bot_logger.addHandler(bot_handler)
+bot_logger.setLevel(getEnvLogLevel('BOT_LOG_LEVEL', 'warning'))
 
 def _custom_log_request(self, code="-", size="-"):
   path = uri_to_iri(self.path)
@@ -65,7 +69,7 @@ def _custom_log_request(self, code="-", size="-"):
   werkzeug_logger.info(
     "\'%(remote_addr)s\' %(command)s %(request_version)s \"%(url)s\" [%(size)s] %(code)s: "
     % {
-      'remote_addr': self.address_string(),
+      'remote_addr': self.headers.get('X-Forwarded-For', self.address_string()),
       'url': path,
       'size': size,
       'command': self.command,
@@ -75,6 +79,5 @@ def _custom_log_request(self, code="-", size="-"):
   )
 
 WSGIRequestHandler.log_request = _custom_log_request
-
 
 
