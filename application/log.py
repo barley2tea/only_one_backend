@@ -80,4 +80,3 @@ def _custom_log_request(self, code="-", size="-"):
 
 WSGIRequestHandler.log_request = _custom_log_request
 
-

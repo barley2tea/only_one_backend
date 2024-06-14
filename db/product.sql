@@ -161,12 +161,27 @@ CREATE TABLE `sendIoTDevices` (
 
 CREATE TABLE `IoT` (
   `IoTID` VARCHAR(8) PRIMARY KEY,
-  `sendIoTDevicesID` VARCHAR(32) NOT NULL,
-  `dormitoryPlaceID` TINYINT UNSIGNED NOT NULL,
+  `sendIoTDevicesID` VARCHAR(32),
+  `dormitoryPlaceID` TINYINT UNSIGNED,
   `No` TINYINT UNSIGNED NOT NULL,
   FOREIGN KEY (`sendIoTDevicesID`) REFERENCES `sendIoTDevices`(`sendIoTDevicesID`) ON UPDATE CASCADE,
   FOREIGN KEY (`dormitoryPlaceID`) REFERENCES `dormitoryPlace`(`dormitoryPlaceID`) ON UPDATE CASCADE
 );
+
+INSERT INTO `IoT`(`IoTID`, `dormitoryPlaceID`, `No`) VALUES
+('PB_12', NULL, 1), ('PB_34', NULL, 2), ('PB_56', NULL, 3), ('SW_21', 1, 1), ('SW_22', 1, 2), ('SW_31', 7, 1),
+('SW_32', 7, 2), ('WA_211', 1, 1), ('WA_212', 1, 2), ('WA_221', 2, 1), ('WA_222', 2, 1),
+('WA_223', 2, 3), ('WA_231', 3, 1), ('WA_232', 3, 2), ('WA_233', 3, 3), ('WA_311', 7, 1),
+('WA_312', 7, 2), ('WA_313', 7, 3), ('WA_314', 7, 4), ('WA_321', 8, 1),
+('WA_322', 8, 2), ('WA_323', 8, 3), ('WA_324', 8, 4), ('WA_331', 9, 1),
+('WA_332', 9, 2), ('WA_333', 9, 3), ('WA_334', 9, 4), ('DR_211', 1, 1),
+('DR_212', 1, 2), ('DR_221', 2, 1), ('DR_222', 2, 2), ('DR_223', 2, 3),
+('DR_231', 3, 1), ('DR_232', 3, 2), ('DR_233', 3, 3), ('DR_311', 7, 1),
+('DR_312', 7, 2), ('DR_313', 7, 3), ('DR_314', 7, 4), ('DR_321', 8, 1),
+('DR_322', 8, 2), ('DR_323', 8, 3), ('DR_324', 8, 4), ('DR_331', 9, 1),
+('DR_332', 9, 2), ('DR_333', 9, 3), ('DR_334', 9, 4);
+
+
 
 CREATE TABLE `IoTData` (
   `IoTDataID` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 8.2.0, for macos14.0 (arm64)
+-- MySQL dump 10.13  Distrib 8.3.0, for macos14.2 (arm64)
 --
 -- Host: localhost    Database: testDB
 -- ------------------------------------------------------
--- Server version	8.2.0
+-- Server version	8.3.0
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -241,54 +241,60 @@ INSERT INTO `dormitoryPlace` VALUES (1,1,1,'MOU_1'),(2,1,2,'MOU_2'),(3,1,3,'MOU_
 UNLOCK TABLES;
 
 --
--- Table structure for table `IoT_Data`
+-- Table structure for table `IoT`
 --
 
-DROP TABLE IF EXISTS `IoT_Data`;
+DROP TABLE IF EXISTS `IoT`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `IoT_Data` (
-  `IoT_DataID` bigint unsigned NOT NULL AUTO_INCREMENT,
+CREATE TABLE `IoT` (
   `IoTID` varchar(8) NOT NULL,
-  `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `dataStatus` tinyint unsigned NOT NULL,
-  PRIMARY KEY (`IoT_DataID`),
-  KEY `IoTID` (`IoTID`),
-  CONSTRAINT `iot_data_ibfk_1` FOREIGN KEY (`IoTID`) REFERENCES `IoT_IP` (`IoTID`) ON UPDATE CASCADE
+  `sendIoTDevicesID` varchar(32) DEFAULT NULL,
+  `dormitoryPlaceID` tinyint unsigned DEFAULT NULL,
+  `No` tinyint unsigned NOT NULL,
+  PRIMARY KEY (`IoTID`),
+  KEY `sendIoTDevicesID` (`sendIoTDevicesID`),
+  KEY `dormitoryPlaceID` (`dormitoryPlaceID`),
+  CONSTRAINT `iot_ibfk_1` FOREIGN KEY (`sendIoTDevicesID`) REFERENCES `sendIoTDevices` (`sendIoTDevicesID`) ON UPDATE CASCADE,
+  CONSTRAINT `iot_ibfk_2` FOREIGN KEY (`dormitoryPlaceID`) REFERENCES `dormitoryPlace` (`dormitoryPlaceID`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `IoT_Data`
+-- Dumping data for table `IoT`
 --
 
-LOCK TABLES `IoT_Data` WRITE;
-/*!40000 ALTER TABLE `IoT_Data` DISABLE KEYS */;
-/*!40000 ALTER TABLE `IoT_Data` ENABLE KEYS */;
+LOCK TABLES `IoT` WRITE;
+/*!40000 ALTER TABLE `IoT` DISABLE KEYS */;
+INSERT INTO `IoT` VALUES ('DR_211',NULL,1,1),('DR_212',NULL,1,2),('DR_221',NULL,2,1),('DR_222',NULL,2,2),('DR_223',NULL,2,3),('DR_231',NULL,3,1),('DR_232',NULL,3,2),('DR_233',NULL,3,3),('DR_311',NULL,7,1),('DR_312',NULL,7,2),('DR_313',NULL,7,3),('DR_314',NULL,7,4),('DR_321',NULL,8,1),('DR_322',NULL,8,2),('DR_323',NULL,8,3),('DR_324',NULL,8,4),('DR_331',NULL,9,1),('DR_332',NULL,9,2),('DR_333',NULL,9,3),('DR_334',NULL,9,4),('PB_12',NULL,NULL,1),('PB_34',NULL,NULL,2),('PB_56',NULL,NULL,3),('SW_21',NULL,1,1),('SW_22',NULL,1,2),('SW_31',NULL,7,1),('SW_32',NULL,7,2),('WA_211',NULL,1,1),('WA_212',NULL,1,2),('WA_221',NULL,2,1),('WA_222',NULL,2,1),('WA_223',NULL,2,3),('WA_231',NULL,3,1),('WA_232',NULL,3,2),('WA_233',NULL,3,3),('WA_311',NULL,7,1),('WA_312',NULL,7,2),('WA_313',NULL,7,3),('WA_314',NULL,7,4),('WA_321',NULL,8,1),('WA_322',NULL,8,2),('WA_323',NULL,8,3),('WA_324',NULL,8,4),('WA_331',NULL,9,1),('WA_332',NULL,9,2),('WA_333',NULL,9,3),('WA_334',NULL,9,4);
+/*!40000 ALTER TABLE `IoT` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
--- Table structure for table `IoT_IP`
+-- Table structure for table `IoTData`
 --
 
-DROP TABLE IF EXISTS `IoT_IP`;
+DROP TABLE IF EXISTS `IoTData`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `IoT_IP` (
+CREATE TABLE `IoTData` (
+  `IoTDataID` bigint unsigned NOT NULL AUTO_INCREMENT,
   `IoTID` varchar(8) NOT NULL,
-  `IoTIP` varchar(32) NOT NULL,
-  PRIMARY KEY (`IoTID`),
-  UNIQUE KEY `IoTIP` (`IoTIP`)
+  `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `dataStatus` tinyint unsigned NOT NULL,
+  PRIMARY KEY (`IoTDataID`),
+  KEY `IoTID` (`IoTID`),
+  CONSTRAINT `iotdata_ibfk_1` FOREIGN KEY (`IoTID`) REFERENCES `IoT` (`IoTID`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `IoT_IP`
+-- Dumping data for table `IoTData`
 --
 
-LOCK TABLES `IoT_IP` WRITE;
-/*!40000 ALTER TABLE `IoT_IP` DISABLE KEYS */;
-/*!40000 ALTER TABLE `IoT_IP` ENABLE KEYS */;
+LOCK TABLES `IoTData` WRITE;
+/*!40000 ALTER TABLE `IoTData` DISABLE KEYS */;
+/*!40000 ALTER TABLE `IoTData` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -322,6 +328,32 @@ CREATE TABLE `rollCall` (
 LOCK TABLES `rollCall` WRITE;
 /*!40000 ALTER TABLE `rollCall` DISABLE KEYS */;
 /*!40000 ALTER TABLE `rollCall` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `sendIoTDevices`
+--
+
+DROP TABLE IF EXISTS `sendIoTDevices`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sendIoTDevices` (
+  `sendIoTDevicesID` varchar(8) NOT NULL,
+  `IP` varchar(32) NOT NULL,
+  `mac` varchar(32) NOT NULL,
+  PRIMARY KEY (`sendIoTDevicesID`),
+  UNIQUE KEY `IP` (`IP`),
+  UNIQUE KEY `mac` (`mac`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `sendIoTDevices`
+--
+
+LOCK TABLES `sendIoTDevices` WRITE;
+/*!40000 ALTER TABLE `sendIoTDevices` DISABLE KEYS */;
+/*!40000 ALTER TABLE `sendIoTDevices` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -478,4 +510,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2024-01-26 13:04:20
+-- Dump completed on 2024-06-14 11:19:35

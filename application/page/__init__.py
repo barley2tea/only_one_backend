@@ -8,14 +8,16 @@ from flask import jsonify, request
 def catchError(func=None, req_json=False):
   def _catchError(_func):
     def wrapper(*args, **kwargs):
-      if req_json and request.json is None:  return HTTP_STAT(400)
+      if req_json and request.json is None:
+        app.logger.debug("Send not JSON")
+        return HTTP_STAT(400)
       try:
         return _func(*args, **kwargs)
       except Error as e:
         app.logger.warning(str(e))
         return jsonify({'error': 'SQLError'}), 400
       except RequestException as e:
-        app.logger.debug(str(e))
+        app.logger.warning(str(e))
         return HTTP_STAT(400)
     wrapper.__name__ = _func.__name__
     return wrapper

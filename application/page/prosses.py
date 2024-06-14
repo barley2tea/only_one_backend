@@ -29,10 +29,9 @@ def doing_prosses(func):
     return ret
   return wrapper
 
-
 @doing_prosses
 def IotProssesing(IoT_id:str, data:str):
-  return  normal_process    if IoT_id[:2] == 'WD' else\ #WD_[寮棟][階層][No]
+  return  normal_process    if IoT_id[:2] == 'WD' else\
           PB_prosses        if IoT_id[:2] == 'PB' else\
           SW_prosses        if IoT_id[:2] == 'SW' else\
           DR_prosses        if IoT_id[:2] == 'DR' else None

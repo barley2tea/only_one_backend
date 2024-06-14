@@ -33,7 +33,7 @@ def root():
 
   if len(IoT_id) != 1:
     if not IoT_id:
-      app.logger.info(f'Unauthorized access')
+      app.logger.info(f'Unauthorized access. ID:IPaddr[{remote_addr}]')
       return HTTP_STAT(403)
     else:
       app.logger.error('Duplicate ID:addr[{remote_addr}], ID{str(IoT_id)}')
