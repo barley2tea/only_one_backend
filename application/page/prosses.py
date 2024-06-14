@@ -32,10 +32,16 @@ def doing_prosses(func):
 
 @doing_prosses
 def IotProssesing(IoT_id:str, data:str):
-  return  PB_prosses        if IoT_id[:2] == 'PB' else\
+  return  normal_process    if IoT_id[:2] == 'WD' else\ #WD_[寮棟][階層][No]
+          PB_prosses        if IoT_id[:2] == 'PB' else\
           SW_prosses        if IoT_id[:2] == 'SW' else\
           DR_prosses        if IoT_id[:2] == 'DR' else None
 
+def normal_process(IoT_id:str, data:dict):
+  if not isinstance(data, dict):
+    raise ProssesException('JSON is not being sent.')
+
+  return [ {'ID': k, 'stat': data[k]} for k in data.keys() ]
 
 def SW_prosses(IoT_id:str, data:dict):
   if not isinstance(data, dict):

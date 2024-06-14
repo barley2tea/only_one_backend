@@ -23,12 +23,12 @@ import json
 # PROPOSAL
 # Collect variables into a buffer and INSERT them periodically in application.bot.
 # ---------
-# Insert IoT_Data
+# Insert IoTData
 @app.route("/", methods=['POST'])
 @catchError
 def root():
-  stmt = selectsql([['IoT_IP.IoTID', 'T', 'IP']], [['IoT_IP', 'T']], [['IoT_IP.IoTIP', 'IP', '=']])
   remote_addr = request.headers.getlist("X-Forwarded-For")[0] if request.headers.getlist("X-Forwarded-For") else request.remote_addr
+  stmt = 'SELECT T.sendIoTDevicesID FROM sendIoTDevices AS T WHERE T.IP = %(IP)s;'
   IoT_id = default_ope.query(str(stmt), args={'IP': str(remote_addr)}, prepared=True)
 
   if len(IoT_id) != 1:
@@ -48,7 +48,7 @@ def root():
   else:
     args = stat
     many = True
-  table = getVal('IoT_Data', t='table')
+  table = getVal('IoTData', t='table')
   stmt = insertvalsql(table.getCol('IoTID', 'dataStatus'), table, ['ID', 'stat'])
 
   default_ope.query(stmt, commit=True, args=args, many=many, prepared=True)
@@ -114,7 +114,7 @@ def get_current_user():
 @app.route('/api/dashboard', methods=['GET'])
 @catchError
 def dashboad():
-  stmt = " SELECT T1.IoTID, T1.dataStatus FROM ( `IoT_Data` AS T1 NATURAL INNER JOIN ( SELECT T3.IoTID, MAX(T3.time) AS 'time' FROM `IoT_Data` AS T3 GROUP BY T3.IoTID) AS T2);"
+  stmt = " SELECT T1.IoTID, T1.dataStatus FROM ( `IoTData` AS T1 NATURAL INNER JOIN ( SELECT T3.IoTID, MAX(T3.time) AS 'time' FROM `IoTData` AS T3 GROUP BY T3.IoTID) AS T2);"
   res = default_ope.query(stmt, dictionary=True)
 
   def getdata(purpos, place):
