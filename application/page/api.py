@@ -40,7 +40,7 @@ def root():
       return HTTP_STAT(500)
 
   IoT_id = IoT_id[0][0]
-  request_data = request.get_data() if request.json is None else request.json
+  request_data = request.json if request.headers.get('Content-Type') == 'application/json' else request.get_data()
   stat = IotProssesing(IoT_id, request_data)
   if isinstance(stat, int):
     args = {'ID': IoT_id, 'stat': stat}

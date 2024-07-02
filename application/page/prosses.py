@@ -6,9 +6,9 @@ import json
 import io
 import glob
 import re
+import numpy as np
 from PIL import Image
 
-PB_model = YOLO(os.getenv('MODEL_PATH'))
 
 def doing_prosses(func):
   def wrapper(*args, **kwargs):
@@ -60,6 +60,7 @@ def DR_prosses(IoT_id:str, data:dict):
   return [ {'ID': f'{IoT_id[:-1]}{i}', 'stat': stat} for (i, stat) in enumerate(status) ]
 
 def PB_prosses(IoT_id:str, data:bytes):
+  PB_model = YOLO(os.getenv('MODEL_PATH'))
   if PB_model is None:  raise ProssesException('model is not include')
 
   #test
