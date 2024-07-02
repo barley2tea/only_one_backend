@@ -12,6 +12,10 @@ class RequestValueError(RequestException):
   def __str__(self):
     return f"RequestValueError: '{self.arg}'"
 
+class RequestTypeError(RequestException):
+  def __str__(self):
+    return f"RequestTypeError: '{self.arg}'"
+
 # prosses exception
 class ProssesException(Exception):
   def __init__(self, arg=''):

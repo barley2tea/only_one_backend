@@ -1,14 +1,17 @@
 from application import app
-from application.exception import ProssesException
+from application.exception import ( 
+  ProssesException,
+  RequestTypeError,
+  RequestValueError,
+  RequestException
+)
 from ultralytics import YOLO
 import os
-import json
 import io
 import glob
 import re
 import numpy as np
-from PIL import Image
-
+from PIL import Image, UnidentifiedImageError
 
 def doing_prosses(func):
   def wrapper(*args, **kwargs):
@@ -22,8 +25,15 @@ def doing_prosses(func):
     except ProssesException as e:
       app.logger.warning(str(e))
       return None
+    except RequestException as e:
+      app.logger.info(str(e))
+      return -1
     except Exception as e:
       app.logger.error(str(e))
+      return None
+
+    if not isinstance(ret, list):
+      app.logger.error('Invalid return value in "{pros.__name__}"')
       return None
 
     return ret
@@ -33,47 +43,37 @@ def doing_prosses(func):
 def IotProssesing(IoT_id:str, data:str):
   return  normal_process    if IoT_id[:2] == 'WD' else\
           PB_prosses        if IoT_id[:2] == 'PB' else\
-          SW_prosses        if IoT_id[:2] == 'SW' else\
+          normal_process    if IoT_id[:2] == 'SW' else\
           DR_prosses        if IoT_id[:2] == 'DR' else None
 
 def normal_process(IoT_id:str, data:dict):
   if not isinstance(data, dict):
-    raise ProssesException('JSON is not being sent.')
+    raise RequestTypeError(f'JSON is not being sent. IoT_id:{IoT_id}')
 
   return [ {'ID': k, 'stat': data[k]} for k in data.keys() ]
-
-def SW_prosses(IoT_id:str, data:dict):
-  if not isinstance(data, dict):
-    raise ProssesException('JSON is not being sent.')
-
-  PARAMETER_DICT = {'2': 3700, '3': 3000}#山は3700海は3000
-  return int(PARAMETER_DICT.get(IoT_id[3], 3700) > data['sensorValue'])
- 
-def DR_prosses(IoT_id:str, data:dict):
-  data = data['sensorValue']
-  data = [ int(d, 10) if re.fullmatch('\d+', d) else None for d in data ]
-  if None in data:
-    status = [0, 0, 0]
-  else:
-    status = [0, data[3], data[4]]
-    status[0] = int(0.1 < abs(data[0]) and 0.1 < abs(data[1]))
-  return [ {'ID': f'{IoT_id[:-1]}{i}', 'stat': stat} for (i, stat) in enumerate(status) ]
 
 def PB_prosses(IoT_id:str, data:bytes):
   PB_model = YOLO(os.getenv('MODEL_PATH'))
   if PB_model is None:  raise ProssesException('model is not include')
 
+  try:
+    with Image.open(io.BytesIO(data)) as pil_img:
+      img = np.asarray(pil_img)
+  except UnidentifiedImageError as e:
+    raise RequestTypeError(f'Cannt identify image file')
+
+  if not (len(img.shape) == 3 and img.shape[2] == 3):
+    raise RequestValueError(f'Bad image. shape={img.shape}')
+
   #test
   if os.getenv('SAVE_IMAGE', 'False') == 'True':
     test_dir = os.getenv('TEST_DIRECTORY', '.')
-    with open(f"{test_dir}/{len(glob.glob(test_dir))}.jpg", 'wb') as f:
+    num = len(glob.glob(f'{test_dir}/*'))
+    with open(f"{test_dir}/{num}.jpg", 'wb') as f:
       f.write(data)
-  
-  with Image.open(io.BytesIO(data)) as pil_img:
-    img = np.asarray(pil_img)
 
   res = PB_model(img)
-  return int((len(res) + 1) // 2)
+  return [ {'ID': IoT_id, 'stat': int((len(res) + 1) // 2)} ]
 
 
   

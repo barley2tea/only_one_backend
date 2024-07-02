@@ -37,4 +37,4 @@ def HTTP_STAT(stat):
           (jsonify({'error': 'Not Found'}), 404) if stat == 404 else \
           (jsonify({'error': 'Internal Server Error'}), 500)
 
-__all__ = ['api', 'manage', 'test']
+__all__ = ['api']
