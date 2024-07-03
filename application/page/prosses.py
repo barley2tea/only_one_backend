@@ -40,19 +40,27 @@ def doing_prosses(func):
   return wrapper
 
 @doing_prosses
-def IotProssesing(IoT_id:str, data:str):
-  return  normal_process    if IoT_id[:2] == 'WD' else\
-          PB_prosses        if IoT_id[:2] == 'PB' else\
-          normal_process    if IoT_id[:2] == 'SW' else\
-          DR_prosses        if IoT_id[:2] == 'DR' else None
+def IotProssesing(sendIoT:str, IoTs:list, data:str):
+  return  normal_process    if sendIoT[:2] == 'WD' else\
+          PB_prosses        if sendIoT[:2] == 'PB' else\
+          normal_process    if sendIoT[:2] == 'SW' else\
+          DR_prosses        if sendIoT[:2] == 'DR' else None
 
-def normal_process(IoT_id:str, data:dict):
+def normal_process(sendIoT:str, IoTs:list, data:dict):
   if not isinstance(data, dict):
-    raise RequestTypeError(f'JSON is not being sent. IoT_id:{IoT_id}')
+    raise RequestTypeError(f'JSON is not being sent. sendIoT:{sendIoT}')
+
+  unexpected_iot = set(data.keys()) - set(IoTs)
+  if unexpected_iot:
+    raise RequestValueError(f'Unexpected IoT devices:{unexpected_iot}, sendIoT:{sendIoT}')
 
   return [ {'ID': k, 'stat': data[k]} for k in data.keys() ]
 
-def PB_prosses(IoT_id:str, data:bytes):
+def PB_prosses(sendIoT:str, IoTs:list, data:bytes):
+  unexpected_iot = set([sendIoT]) - set(IoTs)
+  if unexpected_iot:
+    raise RequestValueError(f'Unexpected IoT devices:{unexpected_iot}, sendIoT:{sendIoT}')
+
   PB_model = YOLO(os.getenv('MODEL_PATH'))
   if PB_model is None:  raise ProssesException('model is not include')
 
@@ -73,7 +81,7 @@ def PB_prosses(IoT_id:str, data:bytes):
       f.write(data)
 
   res = PB_model(img)
-  return [ {'ID': IoT_id, 'stat': int((len(res) + 1) // 2)} ]
+  return [ {'ID': sendIoT, 'stat': int((len(res) + 1) // 2)} ]
 
 
   

@@ -12,20 +12,18 @@ from flask import request, jsonify
 @catchError
 def root():
   remote_addr = request.headers.getlist("X-Forwarded-For")[0] if request.headers.getlist("X-Forwarded-For") else request.remote_addr
-  stmt = 'SELECT T.sendIoTDevicesID FROM sendIoTDevices AS T WHERE T.IP = %(IP)s;'
-  IoT_id = default_ope.query(str(stmt), args={'IP': str(remote_addr)}, prepared=True)
+  stmt = 'SELECT T.sendIoTID, T.IoTID FROM `send_iot_info` AS T WHERE T.sendIoTIP = %(IP)s;'
+  IoT_info = default_ope.query(str(stmt), args={'IP': str(remote_addr)}, prepared=True, dictionary=True)
 
-  if len(IoT_id) != 1:
-    if not IoT_id:
-      app.logger.info(f'Unauthorized access. ID:IPaddr[{remote_addr}]')
-      return HTTP_STAT(403)
-    else:
-      app.logger.error('Duplicate ID:addr[{remote_addr}], ID{str(IoT_id)}')
-      return HTTP_STAT(500)
+  if not IoT_info:
+    app.logger.info(f'Unauthorized access. ID:IPaddr[{remote_addr}]')
+    return HTTP_STAT(403)
 
-  IoT_id = IoT_id[0][0]
+  sendIoT = IoT_info[0]['sendIoTID']
+  IoTs = [ i['IoTID'] for i in IoT_info ]
+
   request_data = request.json if request.headers.get('Content-Type') == 'application/json' else request.get_data()
-  args = IotProssesing(IoT_id, request_data)
+  args = IotProssesing(sendIoT, IoTs, request_data)
   
   if args is None:
     return HTTP_STAT(500)
