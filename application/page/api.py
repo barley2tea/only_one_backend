@@ -51,15 +51,15 @@ def root():
 @app.route('/api/dashboard', methods=['GET'])
 @catchError
 def dashboad():
-  stmt = " SELECT T1.IoTID, T1.dataStatus FROM ( `IoTData` AS T1 NATURAL INNER JOIN ( SELECT T3.IoTID, MAX(T3.time) AS 'time' FROM `IoTData` AS T3 GROUP BY T3.IoTID) AS T2);"
+  stmt = "SELECT T.ID, T.stat FROM `latest_dashboard` AS T"
   res = default_ope.query(stmt, dictionary=True)
 
   def getdata(purpos, place):
     if purpos == 'PB':
-      return list(map(lambda x: x['dataStatus'], filter(lambda x: x['IoTID'][:2] == purpos, res)))
-    ret = (list(filter(lambda x: x['IoTID'][:4] == f'{purpos}_{place}', res)))
-    ret.sort(key=lambda x: int(x['IoTID'][4:]))
-    return list(map(lambda x: bool(x['dataStatus']), ret))
+      return list(map(lambda x: x['stat'], filter(lambda x: x['ID'][:2] == purpos, res)))
+    ret = (list(filter(lambda x: x['ID'][:4] == f'{purpos}_{place}', res)))
+    ret.sort(key=lambda x: int(x['ID'][4:]))
+    return list(map(lambda x: bool(x['stat']), ret))
 
   dashboard = {
       "yamaWasherData"    : getdata('WA', 2),

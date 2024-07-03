@@ -65,4 +65,18 @@ CREATE VIEW `send_iot_info` AS (
   FROM `IoT` AS T1 INNER JOIN `sendIoTDevices` AS T2 ON T1.sendIoTDevicesID = T2.sendIoTDevicesID
 );
 
+CREATE VIEW `latest_dashboard` AS (
+  SELECT T1.IoTID AS ID, T1.dataStatus AS stat, T4.place AS place
+  FROM (
+    `IoTData` AS T1
+    INNER JOIN (
+      SELECT ST1.IoTID AS IoTID, MAX(ST1.time) AS time
+      FROM `IoTData` AS ST1
+      GROUP BY ST1.IoTID
+    ) AS T2 ON T1.IoTID = T2.IoTID
+    INNER JOIN `IoT` AS T3 ON T1.IoTID = T3.IoTID
+    INNER JOIN `dormitoryPlace` AS T4 ON T3.dormitoryPlaceID = T4.dormitoryPlaceID
+  )
+);
+
 INSERT INTO `IoTData`(`IoTID`, `dataStatus`) SELECT T.IoTID, 1 FROM IoT AS T;
