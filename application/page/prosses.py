@@ -9,7 +9,6 @@ from ultralytics import YOLO
 import os
 import io
 import glob
-import re
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 

@@ -3,6 +3,15 @@ from application.page import catchError, HTTP_STAT
 from application.page.prosses import IotProssesing
 from application.DBcontrol import default_ope
 from flask import request, jsonify
+from datetime import datetime as dt, timedelta
+import pytz
+import re
+
+DORMITORYS = ("CEN", "MOU", "SEA", "SPA")
+M_TYPES = ("WA", "DR", "PB", "SW")
+PB_MAX_NUM = 3
+# BIRST_TIME = timedelta(minutes=5)
+BIRST_TIME = timedelta(years=1)
 
 # PROPOSAL
 # Collect variables into a buffer and INSERT them periodically in application.bot.
@@ -51,7 +60,114 @@ def root():
 @app.route('/api/dashboard', methods=['GET'])
 @catchError
 def dashboad():
+  legacy = bool(request.args.get('legacy', False))
+  if legacy: return jsonify(legacy_dashboard())
+
+  #一定時間送られていないデバイスはnullを送るようにする
+  timeExclusion = bool(request.args.get("timeExclusion", False))
+
+  dormitory = request.args.get('dormitory', 'ALL').upper()
+  floor = request.args.get('floor', 'ALL').upper()
+  m_type = request.args.get('type', 'ALL').upper()
+
+  if floor == "ALL":
+    floor = 0;
+  elif re.fullmatch(r"[1-5]", floor):
+    floor = int(floor)
+  else:
+    app.logger.info("Invalid query parameters")
+    return HTTP_STAT(400)
+
+  where = ""
+  args = dict()
+  if m_type in M_TYPES:
+    where += "AND T.ID LIKE '%(m_type)s_%'"
+    args["m_type"] = m_type
+  elif m_type != 'ALL':
+    app.logger.info("Invalid query parameters")
+    return HTTP_STAT(400)
+
+  if dormitory in DORMITORYS:
+    if m_type != "PB":
+      where += "AND T.place "
+      if floor != 0:
+        where += "= '%(dormitory)_%(floor)'"
+        args["floor"] = floor
+      else:
+        where += "LIKE '%(dormitory)_%'"
+      args["dormitory"] = dormitory
+  elif dormitory != 'ALL':
+    app.logger.info("Invalid query parameters")
+    return HTTP_STAT(400)
+
+  stmt = "SELECT T.ID, T.stat, T.place, T.num, T.time FROM `latest_dashboard` AS T"
+  stmt += f" WHERE {where[4:]};" if where else ";"
+  app.logger.debug('stmt: '+stmt)
+
+  res = default_ope.query(stmt, dictionary=True)
+  dashboard = dict()
+  max_num = dict()
+
+  def add_data(d, m_n, n):
+    if len(n) > 3:
+      if n[0] not in d.keys():
+        d[n[0]] = dict()
+        m_n[n[0]] = dict()
+      add_data(d[n[0]], n[1:])
+    elif len(n) == 3:
+      if n[0] not in d.keys():
+        d[n[0]] = [None, None, None, None, None]
+        m_n[n[0]] = n[1]
+      elif m_n[n[0]] < n[1]:
+        m_n[n[0]] = n[1]
+    else:
+      d[n[0]] = n[1]
+
+  def trimming_data(d, d_num, check=lambda x1, x2: x1[:x2][0]):
+    if type(d_num) is int: return check(d, d_num)
+    else:
+      return { k: trimming_data(i[k], d_num[k]) for i in d.keys() }
+
+  def check_timelimit(d, d_num):
+    limtime = dt.now(pytz.timezone('Asia/Tokyo')).replace(tzinfo=None) - BIRST_TIME
+    checker = lambda t: limtime <= dt.strptime(t, '%Y-%m-%d %H:%M:%S')
+    return [ d[i][0] if checker(d[i][1]) else None for i in range(d_num) ]
+      
+
+  
+  for d in res:
+    if d_data['ID'][:2] == 'PB':
+      add_data(dashboard, max_num, [d['ID'][:2], d['num'], (d['stat'], d['time'])])
+    else:
+      add_data(dashboard, max_num, [d['place'][:3], f"F{d['place'][4:]}", d['ID'][:2], d['num'], (d['stat'], d['time'])])
+
+  if timeExclusion:
+    trimming_data(dashboard, max_num, check_timelimit)
+  else:
+    trimming_data(dashboard, max_num)
+  app.logger.debug(f'dashboard: {dashboard}')
+  return dashboard
+
+# dashboard = {
+#   "MOU" : {
+#     "F1": {
+#       "WA": [True, False, True, True]
+#       "DR": [True, False, True, True]
+#     },
+#     "F2": {
+#       "WA": [True, False, True, True]
+#       "DR": [None, False, True, True]
+#     }
+#   },
+#   "SEA" : {},
+#   "PB": [2, None, 3]
+
+# }
+
+
+def legacy_dashboard():
   stmt = "SELECT T.ID, T.stat FROM `latest_dashboard` AS T"
+
   res = default_ope.query(stmt, dictionary=True)
 
   def getdata(purpos, place):
@@ -72,4 +188,5 @@ def dashboad():
   }
 
   return jsonify(dashboard)
+
 
