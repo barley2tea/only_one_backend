@@ -1,0 +1,319 @@
+openapi: 3.0.3
+info:
+  title: only_one_backend
+  description: |-
+    This is the flask-based API that forms the backend of 'DormiTool'.
+  license:
+    name: flask 2.2.x
+    url: https://msiz07-flask-docs-ja.readthedocs.io/ja/latest/license.html
+  version: 2.0.0
+servers:
+  - url: https://mmm-foktm-iot.ishikawa-nct.ac.jp
+    description: Production Server
+  - url: http://localhost:5000
+    description: Executing with uWSGI
+  - url: http://localhost:5500
+    description: Deveropment Server
+tags:
+  - name: IoT
+    description: API provided to the IoT devices
+  - name: api
+paths:
+  /:
+    post:
+      tags:
+        - IoT
+      summary: Adding data to the dashboard
+      description: Adding data to the dashboard. Only authorized devices and authorized data items will be allowed to access this URL. A client certificate is required for access.
+      deprecated: false
+      requestBody:
+        required: true
+        description: Add data to mysql
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                DR_311:
+                  type: integer
+                  format: int8
+                  example: 1
+                  description: IoTID as key, status (0 or 1) as value
+                DR_312:
+                  type: integer
+                  format: int8
+                  example: 0
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Invalid request supplied
+        '403':
+          description: Unauthorized IP
+    
+  /api/dashboard:
+    get:
+      tags:
+        - api
+      summary: Getting dashboard data
+      description: Getting latest dashboard data.
+      deprecated: false
+      parameters:
+        - name: dormitory
+          in: query
+          description: Name of the dormitory building to get. If this parameter is ALL or not using, get all data of domitory.
+          schema:
+            type: string
+            example: MOU, CEN, SEA, SPA or ALL
+        - name: floor
+          in: query
+          description: The building floor to get. This parameter is ignored if the dormitory parameter is ALL or not specified. If this parameter is ALL or not using, get all data of floor.
+          schema:
+            type: string
+            example: 1 ~ 5 or ALL
+        - name: type
+          in: query
+          description: Name of the data item to get. If this parameter is PB, other parameter is ignored. If this parameter is ALL or not using, get all data items.
+          schema:
+            type: string
+            example: DR, WA, SW, PB or ALL
+        - name: timeExclusion
+          in: query
+          description: Flag to return NULL for items whose data has not been updated for a certain period of time. Sending any string will make it true.
+          schema:
+            type: string
+            example: any string
+        - name: legacy
+          in: query
+          description: The format of the JSON sent in the response will remain the same as before. Not recommended as classification by floor is not possible.
+          schema:
+            type: string
+            example: any string
+            
+      responses:
+        '200':
+          description: Successful operation. If a parameter is specified, only the specified items are returned. Also, if the target item does not exist (e.g. dormitory=MOU&floor=4), an empty element is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessDashboard'
+        
+        '400':
+          description: Invalid query parameters.
+      
+components:
+  schemas:
+    Success:
+      type: object
+      properties:
+        stat:
+          type: string
+          example: success
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              ID:
+                type: string
+                example: IoTID
+              stat:
+                type: integer
+                example: 1
+    SuccessDashboard:
+      type: object
+      properties:
+        MOU:
+          type: object
+          properties:
+            F1:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            F2:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            F3:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            SW:
+              type: array
+              items:
+                type: boolean
+        CEN:
+          type: object
+          properties:
+            F1:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            F2:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            F3:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            SW:
+              type: array
+              items:
+                type: boolean
+        SEA:
+          type: object
+          properties:
+            F1:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            F2:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            F3:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            SW:
+              type: array
+              items:
+                type: boolean
+        SPA:
+          type: object
+          properties:
+            F1:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            F2:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            F3:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            F4:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            F5:
+              type: object
+              properties:
+                DR:
+                  type: array
+                  items:
+                    type: boolean
+                WA:
+                  type: array
+                  items:
+                    type: boolean
+            SW:
+              type: array
+              items:
+                type: boolean
+        PB:
+          type: array
+          items:
+            type: boolean
