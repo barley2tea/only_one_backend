@@ -87,13 +87,7 @@ paths:
             example: DR, WA, SW, PB or ALL
         - name: timeExclusion
           in: query
-          description: Flag to return NULL for items whose data has not been updated for a certain period of time. Sending any string will make it true.
-          schema:
-            type: string
-            example: any string
-        - name: legacy
-          in: query
-          description: The format of the JSON sent in the response will remain the same as before. Not recommended as classification by floor is not possible.
+          description: If sending any string in this parameter, It will return NULL for any items whose data has not been updated for a certain period of time. This parameter allows you to filter out data that is too old and not in keeping with the current situation.
           schema:
             type: string
             example: any string
@@ -114,7 +108,7 @@ components:
     Success:
       type: object
       properties:
-        stat:
+        status:
           type: string
           example: success
         data:
@@ -125,7 +119,7 @@ components:
               ID:
                 type: string
                 example: IoTID
-              stat:
+              status:
                 type: integer
                 example: 1
     SuccessDashboard:
