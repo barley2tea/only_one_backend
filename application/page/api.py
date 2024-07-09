@@ -53,18 +53,18 @@ def root():
   stmt = " INSERT INTO `IoTData`(`IoTID`, `dataStatus`) VALUES(%(ID)s, %(stat)s);"
 
   default_ope.query(stmt, commit=True, args=args, many=many, prepared=True)
-  return jsonify({'stat': 'success', 'data': args}), 200
+  return jsonify({'status': 'success', 'data': args}), 200
 
 
 # get latest dashboard data
 @app.route('/api/dashboard', methods=['GET'])
 @catchError
 def dashboad():
-  legacy = bool(request.args.get('legacy', False))
-  if legacy: return jsonify(legacy_dashboard())
-
   #一定時間送られていないデバイスはnullを送るようにする
-  timeExclusion = bool(request.args.get("timeExclusion", False))
+  timeExclusion = request.args.get("timeExclusion", False)
+  if timeExclusion:
+    app.logger.info("Invalid query parameters")
+    return HTTP_STAT(400)
 
   dormitory = request.args.get('dormitory', 'ALL').upper()
   floor = request.args.get('floor', 'ALL').upper()
@@ -165,30 +165,3 @@ def dashboad():
 #   "PB": [2, None, 3]
 
 # }
-
-
-def legacy_dashboard():
-  stmt = "SELECT T.ID, T.stat FROM `latest_dashboard` AS T"
-
-  res = default_ope.query(stmt, dictionary=True)
-
-  def getdata(purpos, place):
-    if purpos == 'PB':
-      return list(map(lambda x: x['stat'], filter(lambda x: x['ID'][:2] == purpos, res)))
-    ret = (list(filter(lambda x: x['ID'][:4] == f'{purpos}_{place}', res)))
-    ret.sort(key=lambda x: int(x['ID'][4:]))
-    return list(map(lambda x: bool(x['stat']), ret))
-
-  dashboard = {
-      "yamaWasherData"    : getdata('WA', 2),
-      "umiWasherData"     : getdata('WA', 3),
-      "yamaDryerData"     : getdata('DR', 2),
-      "umiDryerData"      : getdata('DR', 3),
-      "yamaShowerData"    : getdata('SW', 2),
-      "umiShowerData"     : getdata('SW', 3),
-      "numberOfUsingBathData" : getdata('PB', None)
-  }
-
-  return jsonify(dashboard)
-
-

@@ -87,7 +87,7 @@ paths:
             example: DR, WA, SW, PB or ALL
         - name: timeExclusion
           in: query
-          description: If sending any string in this parameter, It will return NULL for any items whose data has not been updated for a certain period of time. This parameter allows you to filter out data that is too old and not in keeping with the current situation.
+          description: If sending true in this parameter, It will return NULL for any items whose data has not been updated for a certain period of time. This parameter allows you to filter out data that is too old and not in keeping with the current situation.
           schema:
             type: string
             example: any string
