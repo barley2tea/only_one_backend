@@ -124,16 +124,16 @@ def dashboad():
     else:
       d[n[0] - 1] = n[1]
 
-  def trimming_data(d, d_num, check=lambda x1, x2: [ x1[i] if x1[i] is None else x1[i][0] for i in range(x2) ]):
+  def trimming_data(d, d_num, check=lambda x1, x2, is_bool=True: [ x1[i] if x1[i] is None else bool(x1[i][0]) if is_bool else x1[i][0] for i in range(x2) ], is_bool=True):
     if type(d_num) is int:
-      return check(d, d_num)
+      return check(d, d_num, is_bool=is_bool)
     else:
-      return { k: trimming_data(d[k], d_num[k], check=check) for k in d.keys() }
+      return { k: trimming_data(d[k], d_num[k], check=check, is_bool=bool(k != 'PB')) for k in d.keys() }
 
-  def check_timelimit(d, d_num):
+  def check_timelimit(d, d_num, is_bool=True):
     print(d, d_num)
     limtime = dt.now(pytz.timezone('Asia/Tokyo')).replace(tzinfo=None) - BIRST_TIME
-    return [ None if d[i] is None else d[i][0] if limtime <= d[i][1] else None for i in range(d_num) ]
+    return [ None if d[i] is None else bool(d[i][0]) if is_bool else d[i][0] if limtime <= d[i][1] else None for i in range(d_num) ]
       
   for d in res:
     if d['ID'][:2] == 'PB':

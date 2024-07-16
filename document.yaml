@@ -310,4 +310,4 @@ components:
         PB:
           type: array
           items:
-            type: boolean
+            type: integer
