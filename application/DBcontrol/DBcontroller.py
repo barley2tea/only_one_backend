@@ -1,4 +1,5 @@
 import mysql.connector
+import threading
 
 class MysqlOperator:
   def __init__(self, user:str, host:str, database:str, password:str=None):
@@ -6,6 +7,7 @@ class MysqlOperator:
     self.host = host
     self.database = database
     self.con = None
+    self.query_lock = threading.Lock()
     if password is not None: self.start_connection(password=password)
 
   @classmethod
@@ -33,12 +35,12 @@ class MysqlOperator:
   def rollback(self): self.con.rollback()
 
   def query(self, stmt, commit=False, args=None, many=False, prepared=True, debug=False, **kwargs):
+    self.query_lock.acquire()
     try:
       if type(stmt) is not str: stmt = str(stmt)
       cur = self.con.cursor(prepared=prepared, **kwargs)
       exefunc = cur.executemany if many else cur.execute
-      if not args:  exefunc(stmt)
-      else:             exefunc(stmt, args)
+      exefunc(stmt, args) if args else exefunc(stmt)
 
       if debug:
         print('----executed----')
@@ -52,5 +54,6 @@ class MysqlOperator:
       raise e
     finally:
       cur.close()
+    self.query_lock.release()
     return res
 

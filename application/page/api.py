@@ -56,13 +56,14 @@ def root():
   return jsonify({'status': 'success', 'data': args}), 200
 
 
+# 再帰構造が悪さしていそう
 # get latest dashboard data
 @app.route('/api/dashboard', methods=['GET'])
 @catchError
 def dashboad():
-  #一定時間送られていないデバイスはnullを送るようにする
+  # Get arguments and return 400 if the argument is invalid
   timeExclusion = request.args.get("timeExclusion", False)
-  if timeExclusion:
+  if timeExclusion and timeExclusion != "true":
     app.logger.info("Invalid query parameters")
     return HTTP_STAT(400)
 
@@ -70,14 +71,13 @@ def dashboad():
   floor = request.args.get('floor', 'ALL').upper()
   m_type = request.args.get('type', 'ALL').upper()
 
-  if floor == "ALL":
-    floor = 0;
-  elif re.fullmatch(r"[1-5]", floor):
+  if re.fullmatch(r"[1-5]", floor):
     floor = int(floor)
-  else:
+  elif floor != "ALL":
     app.logger.info("Invalid query parameters")
     return HTTP_STAT(400)
 
+  # Create query in parallel
   where = ""
   args = dict()
   if m_type in M_TYPES:
@@ -90,7 +90,7 @@ def dashboad():
   if dormitory in DORMITORYS:
     if m_type != "PB":
       where += " AND T.place "
-      if floor != 0:
+      if floor != "ALL":
         where += "= %(place)s"
         args["place"] = f"{dormitory}_{floor}"
       else:
@@ -102,66 +102,29 @@ def dashboad():
 
   stmt = "SELECT T.ID, T.stat, T.place, T.num, T.time FROM `latest_dashboard` AS T"
   stmt += f" WHERE {where[5:]};" if where else ";"
-  # app.logger.debug(f'stmt: {stmt}, args: {args}')
-
   res = default_ope.query(stmt, args=args, dictionary=True, prepared=True)
+
+  def format_dashboard(kl, board=dict(), check=lambda kv: kv[0]):
+    if len(kl) == 2:
+      if len(board) <= kl[0] - 1:
+        [ board.append(None) for _ in range(kl[0] - len(board)) ]
+      board[kl[0] - 1] = check(kl[1])
+    elif len(kl) > 2:
+      if kl[0] not in board.keys():
+        board[kl[0]] = dict() if len(kl) > 3 else list()
+      format_dashboard(kl[1:], board[kl[0]])
+    else:
+      raise ValueError(f"invalid key_list: {kl}")
+  
   dashboard = dict()
-  max_num = dict()
-
-  def add_data(d, m_n, n):
-    if len(n) > 3:
-      if n[0] not in d.keys():
-        d[n[0]] = dict()
-        m_n[n[0]] = dict()
-      add_data(d[n[0]], m_n[n[0]], n[1:])
-    elif len(n) == 3:
-      if n[0] not in d.keys():
-        d[n[0]] = [None, None, None, None, None]
-        m_n[n[0]] = n[1]
-      elif m_n[n[0]] < n[1]:
-        m_n[n[0]] = n[1]
-      add_data(d[n[0]], m_n[n[0]], n[1:])
-    else:
-      d[n[0] - 1] = n[1]
-
-  def trimming_data(d, d_num, check=lambda x1, x2, is_bool=True: [ x1[i] if x1[i] is None else bool(x1[i][0]) if is_bool else x1[i][0] for i in range(x2) ], is_bool=True):
-    if type(d_num) is int:
-      return check(d, d_num, is_bool=is_bool)
-    else:
-      return { k: trimming_data(d[k], d_num[k], check=check, is_bool=bool(k != 'PB')) for k in d.keys() }
-
-  def check_timelimit(d, d_num, is_bool=True):
-    print(d, d_num)
-    limtime = dt.now(pytz.timezone('Asia/Tokyo')).replace(tzinfo=None) - BIRST_TIME
-    return [ None if d[i] is None else bool(d[i][0]) if is_bool else d[i][0] if limtime <= d[i][1] else None for i in range(d_num) ]
-      
+  check = (lambda kv: kv[0]) if timeExclusion else\
+          (lambda kv: None if dt.now(pytz.timezone('Asia/Tokyo')).replace(tzinfo=None) - BIRST_TIME > kv[1] else kv[0])
   for d in res:
-    if d['ID'][:2] == 'PB':
-      add_data(dashboard, max_num, [d['ID'][:2], d['num'], (d['stat'], d['time'])])
-    elif d['ID'][:2] == 'SW':
-      add_data(dashboard, max_num, [d['place'][:3], d['ID'][:2], d['num'], (d['stat'], d['time'])])
-    else:
-      add_data(dashboard, max_num, [d['place'][:3], f"F{d['place'][4:]}", d['ID'][:2], d['num'], (d['stat'], d['time'])])
+    ID = d['ID'][:2]
+    key_list = [ID, d['num'], (d['stat'], d['time'])] if ID == 'PB' else\
+               [d['place'][:3], ID, d['num'], (bool(d['stat']), d['time'])] if ID == 'SW' else\
+               [d['place'][:3], f"F{d['place'][4:]}", ID, d['num'], (bool(d['stat']), d['time'])]
+    format_dashboard(key_list, dashboard, check)
 
-  if timeExclusion:
-    dashboard = trimming_data(dashboard, max_num, check=check_timelimit)
-  else:
-    dashboard = trimming_data(dashboard, max_num)
   # app.logger.debug(f'dashboard: {dashboard}')
   return dashboard
-
-# dashboard = {
-#   "MOU" : {
-#     "F1": {
-#       "WA": [True, False, True, True]
-#       "DR": [True, False, True, True]
-#     },
-#     "F2": {
-#       "WA": [True, False, True, True]
-#       "DR": [None, False, True, True]
-#     }
-#   },
-#   "SEA" : {},
-#   "PB": [2, None, 3]
-
-# }

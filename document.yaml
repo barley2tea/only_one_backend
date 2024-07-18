@@ -64,7 +64,7 @@ paths:
       tags:
         - api
       summary: Getting dashboard data
-      description: Getting latest dashboard data.
+      description: Getting latest dashboard data. If no data is registered in the DB, the corresponding item in the array will be null. If it is the end of the array, the element itself will be missing. If the data for a floor or dormitory is not all registered, the corresponding floor or dormitory item will disappear. This situation is highly unlikely, so in most cases you don't need to think about it.
       deprecated: false
       parameters:
         - name: dormitory
@@ -90,7 +90,7 @@ paths:
           description: If sending true in this parameter, It will return NULL for any items whose data has not been updated for a certain period of time. This parameter allows you to filter out data that is too old and not in keeping with the current situation.
           schema:
             type: string
-            example: any string
+            example: true
             
       responses:
         '200':
