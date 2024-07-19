@@ -1,43 +1,56 @@
 import mysql.connector
 import threading
+import json
 
 class MysqlOperator:
-  def __init__(self, user:str, host:str, database:str, password:str=None):
-    self.user = user
-    self.host = host
-    self.database = database
+  def __init__(self, config_path:str):
+    self.config_path = config_path
     self.con = None
     self.query_lock = threading.Lock()
-    if password is not None: self.start_connection(password=password)
+    self.start_connection(config_path)
 
   @classmethod
   def connect_mysql(self, user:str, password:str, host:str, database:str):
     con = mysql.connector.connect(user=user, password=password, host=host, database=database)
-    
-    if not con.is_connected(): raise Exception("Failed to connect to MySQL server")
-
+    if not con.is_connected():
+      raise Exception("Failed to connect to MySQL server")
     con.ping(reconnect=True)
     con.autocommit = False
-
     return con
 
-  def __del__(self): self.close_connection()
+  @classmethod
+  def load_config(self, path:str):
+    return json.load(open(path, 'r'))
+    
+  def __del__(self):
+    self.close_connection()
 
-  def start_connection(self, password:str):
+  def start_connection(self, path):
+    password = self.set_config(path)
     self.con = MysqlOperator.connect_mysql(user=self.user, password=password, host=self.host, database=self.database)
+
+  def set_config(self, path:str):
+    config = MysqlOperator.load_config(path)
+    self.user = config['user']
+    self.host = config['host']
+    self.database = config['database']
+    return config['password']
 
   def close_connection(self):
     if self.con is not None:
       self.con.close()
       self.con = None
 
-  def commit(self): self.con.commit()
-  def rollback(self): self.con.rollback()
+  def commit(self):
+    self.con.commit()
+  def rollback(self):
+    self.con.rollback()
 
-  def query(self, stmt, commit=False, args=None, many=False, prepared=True, debug=False, **kwargs):
+  def query(self, stmt:str, commit=False, args=None, many=False, prepared=True, debug=False, **kwargs):
     self.query_lock.acquire()
     try:
-      if type(stmt) is not str: stmt = str(stmt)
+      if self.con is None or not self.con.is_connected():
+        self.start_connection(self.config_path)
       cur = self.con.cursor(prepared=prepared, **kwargs)
       exefunc = cur.executemany if many else cur.execute
       exefunc(stmt, args) if args else exefunc(stmt)
@@ -48,7 +61,8 @@ class MysqlOperator:
         print('----------------')
 
       res = cur.fetchall()
-      if commit: self.commit()
+      if commit:
+        self.commit()
     except Exception as e:
       self.rollback()
       raise e

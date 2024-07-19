@@ -17,23 +17,23 @@ def doing_prosses(func):
     pros = func(*args, **kwargs)
     if pros is None:
       app.logger.warning('No action is defined for this id')
-      return None
+      return 500
 
     try:
       ret = pros(*args, **kwargs)
     except ProssesException as e:
       app.logger.warning(str(e))
-      return None
+      return 500
     except RequestException as e:
       app.logger.info(str(e))
-      return -1
+      return 400
     except Exception as e:
       app.logger.error(str(e))
-      return None
+      return 500
 
     if not isinstance(ret, list):
       app.logger.error('Invalid return value in "{pros.__name__}"')
-      return None
+      return 500
 
     return ret
   return wrapper
