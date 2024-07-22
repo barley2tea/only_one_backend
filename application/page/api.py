@@ -1,7 +1,7 @@
 from application import app, bcrypt
 from application.page import catchError, HTTP_STAT
 from application.page.prosses import IotProssesing
-from application.DBcontrol import default_ope
+from application.DBcontrol import default_ope, iotdata_ope
 from flask import request, jsonify
 from datetime import datetime as dt, timedelta
 import pytz
@@ -20,7 +20,7 @@ def root():
   # IP filtering.
   remote_addr = request.headers.getlist("X-Forwarded-For")[0] if request.headers.getlist("X-Forwarded-For") else request.remote_addr
   stmt = 'SELECT T.sendIoTID, T.IoTID FROM `send_iot_info` AS T WHERE T.sendIoTIP = %(IP)s;'
-  IoT_info = default_ope.query(str(stmt), args={'IP': str(remote_addr)}, prepared=True, dictionary=True)
+  IoT_info = iotdata_ope.query(str(stmt), args={'IP': str(remote_addr)}, prepared=True, dictionary=True)
 
   if not IoT_info:
     app.logger.info(f'Unauthorized access. ID:IPaddr[{remote_addr}]')
@@ -46,7 +46,7 @@ def root():
 
   app.logger.debug(f'data: "{"bytes" if len(request_data) > 100 else request_data}" stat:"{args}"')
   stmt = " INSERT INTO `IoTData`(`IoTID`, `dataStatus`) VALUES(%(ID)s, %(stat)s);"
-  default_ope.query(stmt, commit=True, args=args, many=many, prepared=True)
+  iotdata_ope.query(stmt, commit=True, args=args, many=many, prepared=True)
   return jsonify({'status': 'success', 'data': args}), 200
 
 
