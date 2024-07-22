@@ -1,4 +1,4 @@
-from application import app, bcrypt
+from application import app
 from application.page import catchError, HTTP_STAT
 from application.page.prosses import IotProssesing
 from application.DBcontrol import default_ope, iotdata_ope
