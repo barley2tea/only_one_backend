@@ -6,7 +6,7 @@ info:
   license:
     name: flask 2.2.x
     url: https://msiz07-flask-docs-ja.readthedocs.io/ja/latest/license.html
-  version: 2.0.0
+  version: 2.1.0
 servers:
   - url: https://mmm-foktm-iot.ishikawa-nct.ac.jp
     description: Production Server
@@ -102,7 +102,148 @@ paths:
         
         '400':
           description: Invalid query parameters.
-      
+
+  /api/dashboard_details:
+    get:
+      tags:
+        - api
+      summary: Getting Detailed data on the dashboard
+      description: Getting detailed data on the dashboard. If no data is registered in the DB, the corresponding items will not be included. This is provides more detailed information than "/api/dashboard". Therefore, it can be said to be a superior version of that.
+      deprecated: false
+      parameters:
+        - name: id
+          in: query
+          description: Specify by IoTID.
+          schema:
+            type: string
+            example: WA_311
+        - name: dormitory
+          in: query
+          description: Name of the dormitory building to get. If this parameter is ALL or not using, get all data of domitory.
+          schema:
+            type: string
+            example: MOU, CEN, SEA, SPA or ALL
+        - name: floor
+          in: query
+          description: The building floor to get. This parameter is ignored if the dormitory parameter is ALL or not specified. If this parameter is ALL or not using, get all data of floor.
+          schema:
+            type: string
+            example: 1 ~ 5 or ALL
+        - name: type
+          in: query
+          description: Name of the data item to get. If this parameter is PB, other parameter is ignored. If this parameter is ALL or not using, get all data items.
+          schema:
+            type: string
+            example: DR, WA, SW, PB or ALL
+      responses:
+        '200':
+          description: Successful operation. If a parameter is specified, only the specified items are returned. Also, if the target item does not exist (e.g. dormitory=MOU&floor=4), an empty element is returned. When "type" is null,  "status" is an integer and "dormitory", "floor", "num" is null when "type" is PB. When the "status" is False or "type" is PB, "startedTime" is null.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessDashboardDetailed'
+        
+        '400':
+          description: Invalid query parameters.
+
+  /api/transitions:
+    get:
+      tags:
+        - api
+      summary: Get usage transitions
+      description: Get usage transitions.
+      deprecated: false
+      parameters:
+        - name: id
+          in: query
+          description: Specify by IoTID.
+          schema:
+            type: string
+            example: WA_311
+        - name: dormitory
+          in: query
+          description: Name of the dormitory building to get. If this parameter is ALL or not using, get all data of domitory.
+          schema:
+            type: string
+            example: MOU, CEN, SEA, SPA or ALL
+        - name: floor
+          in: query
+          description: The building floor to get. This parameter is ignored if the dormitory parameter is ALL or not specified. If this parameter is ALL or not using, get all data of floor.
+          schema:
+            type: string
+            example: 1 ~ 5 or ALL
+        - name: type
+          in: query
+          description: Name of the data item to get. If this parameter is PB, other parameter is ignored. If this parameter is ALL or not using, get all data items.
+          schema:
+            type: string
+            example: DR, WA, SW, PB or ALL
+        - name: weekday
+          in: query
+          description: Specify the day of the week to count.
+          schema:
+            type: string
+            example: MON, MONDAY, TUE, TUESDAY and so on.
+        - name: weekly
+          in: query
+          description: Flag to specify whether to include items calculated using data from the past week.
+          schema:
+            type: string
+            example: TRUE
+        - name: monthly
+          in: query
+          description: Flag to specify whether to include items calculated using data from the past month.
+          schema:
+            type: string
+            example: TRUE
+        - name: halfYear
+          in: query
+          description: Flag to specify whether to include items calculated using data from the past half year.
+          schema:
+            type: string
+            example: TRUE
+        - name: startTime
+          in: query
+          description: Specifies the start of the period to aggregate. This is added as a separate label. If not used with endTime, HTTP status 400 will be returned.
+          schema:
+            type: string
+            example: YYYY-MM-DD-hh:mm:ss
+        - name: endTime
+          in: query
+          description: Specifies the end of the period to aggregate. This is added as a separate label. If not used with endTime, HTTP status 400 will be returned.
+          schema:
+            type: string
+            example: YYYY-MM-DD-hh:mm:ss
+        - name: groupByDormitory
+          in: query
+          description: Specify whether to group by dormitory building. If groupByFloor or groupByID is specified, this parameter is ignored.
+          schema:
+            type: string
+            example: TRUE
+        - name: groupByFloor
+          in: query
+          description: Specify whether to group by dormitory building and floor. If or groupByID is specified, this parameter is ignored.
+          schema:
+            type: string
+            example: TRUE
+        - name: groupByID
+          in: query
+          description: Specify whether to group by dormitory building.
+          schema:
+            type: string
+            example: TRUE
+      responses:
+        '200':
+          description: Successful operation. If groupByFloor is TRUE, "No" is not include. If groupByDormitory is TRUE, "floor" and "No" is not include. If don't group "floor", "dormitory" and "No" is not include. If there are missing values in the data in the datasets, those values will be null. If the data does not exist, it will not be included in the response, regardless of whether the flag is set or not.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessTransitions'
+        
+        '400':
+          description: Invalid query parameters.
+  
+  
 components:
   schemas:
     Success:
@@ -311,3 +452,67 @@ components:
           type: array
           items:
             type: integer
+    SuccessDashboardDetailed:
+      type: array
+      items:
+        type: object
+        properties:
+          dormitory:
+            type: string
+            example: MOU, CEN, SEA, SPA or ALL
+          floor:
+            type: integer
+            example: 1 ~ 5
+          No:
+            type: integer
+            example: 1 ~ 4
+          startedTime:
+            type: string
+            example: YYYY-MM-DD hh:mm:ss
+          lastDataTime:
+            type: string
+            example: YYYY-MM-DD hh:mm:ss
+          status:
+            type: integer
+            example: boolean or integer
+          type:
+            type: string
+            example: DR, WA, SW, PB or ALL
+    SuccessTransitions:
+      type: array
+      items:
+        type: object
+        properties:
+          type:
+            type: string
+            example: DR, WA, SW, PB or ALL
+          dormitory:
+            type: string
+            example: MOU, CEN, SEA, SPA or ALL
+          floor:
+            type: integer
+            example: 1 ~ 5
+          No:
+            type: integer
+            example: 1 ~ 4
+          data:
+            type: object
+            properties:
+              labels:
+                type: array
+                items:
+                  type: string
+                  example: hh:mm:ss
+              datasets:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    label:
+                      type: string
+                      example: 一週間
+                    data:
+                      type: array
+                      items:
+                        type: number
+                        example: 3.1

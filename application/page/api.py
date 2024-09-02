@@ -122,7 +122,7 @@ def dashboard_details():
     return HTTP_STAT(400)
 
   stmt = """
-SELECT T1.IoTID, T1.dataStatus AS status, T5.dormitory, T4.floor, T3.No AS num, T1.time AS time, T6.type
+SELECT T1.IoTID, T1.dataStatus AS status, T5.dormitory, T4.floor, T3.No , T1.time AS time, T6.type
 FROM
   `IoTData` AS T1
   INNER JOIN (
@@ -160,7 +160,7 @@ GROUP BY T2.IoTID, T2.time
     "type": r["type"],
     "dormitory": r['dormitory'],
     "floor": r['floor'],
-    "num": r['num'],
+    "No": r['No'],
     "status": r["status"] if r['type'] == "PB" else bool(r['status']),
     "startedTime": get_started.get(r['IoTID'], None),
     "latestDataTime": r['time']
@@ -182,7 +182,7 @@ def changes():
   flags = {
     "monthly": request.args.get('monthly', None),
     "weekly": request.args.get('weekly', None),
-    "half_year": request.args.get('half_year', None),
+    "halfYear": request.args.get('halfYear', None),
     "groupByDormitory": request.args.get('groupByDormitory', None),
     "groupByFloor": request.args.get('groupByFloor', None),
     "groupByID": request.args.get('groupByID', None)
@@ -257,7 +257,7 @@ GROUP BY T1.type, T1.sector{sub_stmt2}
     times.append([ now - timedelta(days=7), now, "一週間" ])
   if flags['monthly']:
     times.append([ now - timedelta(days=30), now, "1ヶ月" ])
-  if flags['half_year']:
+  if flags['halfYear']:
     times.append([ now - timedelta(days=182), now, "半年" ])
   if stime is not None:
     times.append([ stime, etime, f"{stime} ~ {etime}" ])
@@ -285,7 +285,9 @@ GROUP BY T1.type, T1.sector{sub_stmt2}
       v.sort(key=lambda x: x['sector'])
 
       if not result.get(k, False):
-        result[k] = { g: k[i] for i, g in enumerate(groups) }
+        if type(k) is tuple:
+          result[k] = { g: k[i] for i, g in enumerate(groups) }
+        result[k] = { "type": k }
         result[k]["data"] = {
           "labels": labels,
           "datasets": []
