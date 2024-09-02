@@ -149,7 +149,10 @@ FROM
   INNER JOIN IoTData T3
     ON T2.IoTID = T3.IoTID AND T2.time < T3.time AND T2.dataStatus = 1 AND T3.dataStatus = 0
   INNER JOIN ( SELECT T.IoTID, MAX(T.time) time FROM IoTData T WHERE T.dataStatus = 1 GROUP BY T.IoTID) T4
-    ON T2.IoTID = T4.IoTID AND T2.time = T4.time GROUP BY T2.IoTID, T2.time;
+    ON T2.IoTID = T4.IoTID AND T2.time = T4.time
+  INNER JOIN IoT T5 ON T3.IoTID = T5.IoTID
+  INNER JOIN IoTType T6 ON T5.IoTTypeID = T6.IoTTypeID AND T6.type != "PB"
+GROUP BY T2.IoTID, T2.time
 """
   get_started = default_ope.query(stmt, dictionary=True, prepared=True)
   get_started = { v['IoTID']: v['time'] for v in get_started }
@@ -159,15 +162,13 @@ FROM
     "floor": r['floor'],
     "num": r['num'],
     "status": r["status"] if r['type'] == "PB" else bool(r['status']),
-    "startedTime": get_started.get(r['IoTID'], None)
+    "startedTime": get_started.get(r['IoTID'], None),
+    "latestDataTime": r['time']
   } for r in res ]
   return result
 
  
-
-# 一週間、1ヶ月、半年のデータ取得フラグ
-# 指定での取得も可能にする
-@app.route('/api/changes', methods=['GET'])
+@app.route('/api/transitions', methods=['GET'])
 @catchError
 def changes():
   reqargs = getRequest(request.args, ['id', 'dormitory', 'floor', 'type', 'weekday'], default=None)
