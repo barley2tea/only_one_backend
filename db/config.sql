@@ -11,6 +11,7 @@ GRANT SELECT ON `only1DB`.`IoTData` TO 'only1'@'localhost';
 GRANT SELECT ON `only1DB`.`IoTType` TO 'only1'@'localhost';
 GRANT SELECT ON `only1DB`.`IoT` TO 'only1'@'localhost';
 GRANT SELECT ON `only1DB`.`parsedIoTData` TO 'only1'@'localhost';
+GRANT SELECT ON `only1DB`.`send_iot_info` TO 'only1'@'localhost';
 
 GRANT SELECT ON `only1DB`.`send_iot_info` TO 'iot_inserter'@'localhost';
 GRANT INSERT ON `only1DB`.`IoTData` TO 'iot_inserter'@'localhost';
