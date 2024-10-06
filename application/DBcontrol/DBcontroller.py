@@ -1,6 +1,8 @@
 import mysql.connector
+from mysql.connector import Error
 import threading
 import json
+import time
 
 class MysqlOperator:
   def __init__(self, config_path:str):
@@ -11,7 +13,13 @@ class MysqlOperator:
 
   @classmethod
   def connect_mysql(self, user:str, password:str, host:str, database:str):
-    con = mysql.connector.connect(user=user, password=password, host=host, database=database)
+    for _ in range(10):
+      try:
+        con = mysql.connector.connect(user=user, password=password, host=host, database=database)
+      except Error as e:
+        print(f"Error connecting to MySQL: {e}")
+        print("Retrying in 5 seconds...")
+        time.sleep(5)
     if not con.is_connected():
       raise Exception("Failed to connect to MySQL server")
     con.ping(reconnect=True)
