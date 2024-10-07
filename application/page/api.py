@@ -126,7 +126,7 @@ SELECT T1.IoTID, T1.dataStatus AS status, T5.dormitory, T4.floor, T3.No , T1.tim
 FROM
   `IoTData` AS T1
   INNER JOIN (
-    SELECT ST1.IoTID AS IoTID, MAX(ST1.time) AS time
+    SELECT ST1.IoTID AS IoTID, DATE_FORMAT(MAX(ST1.time), "%Y-%m-%d %H:%i:%s") AS time
     FROM `IoTData` AS ST1
     GROUP BY ST1.IoTID
   ) AS T2 ON T1.IoTID = T2.IoTID AND T1.time = T2.time
