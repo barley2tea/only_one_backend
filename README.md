@@ -4,10 +4,10 @@ This is flask project.
 
 ## Set up
 1. Install and setup python, pip and mysql in your pc.
-2. Install the package written in the `requirements.txt`.
-  - e.g. :`$ pip install -r requirements.txt`
-3. Add database to mysql.
-  - e.g. :`$ mysql -u <username> -p<password> -h <host> <databasename> < <product.sql>`
+2. Install the packages listed in `requirements.txt` using the command below.  
+`$ pip install -r requirements.txt`
+3. Add database to mysql uging the command below.  
+`$ mysql -u <username> -p<password> -h <host> <databasename> < <product.sql>`
 4. Create a `.env` file and set the following environment variables
 
 | variable | explanation |
@@ -28,7 +28,7 @@ This is flask project.
 
 ## Data analysis function.
   By actively starting the program, it is possible to analyze the data up to the previous day that exists in the IoTData table. Specifically, it calculates the average status for each IoTID over a 5-minute period.
-You can start the program by following the steps below:
+You can start the program by following the steps below:  
 0. Start mysql server.
 1. Install the package written in the `event_requirements.txt`.
 2. Run `python event.py` to run the program.
