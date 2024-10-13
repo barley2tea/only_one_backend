@@ -289,7 +289,8 @@ GROUP BY T0.type, T0.sector{sub_stmt2}
         result[k]["data"]["datasets"].append({"data": [None] * 288, "label": label})
         i = len(result[k]["data"]["datasets"]) - 1
 
-      result[k]["data"]["datasets"][i]["data"][res["sector"]] = res["value"]
+      if res["sector"] is not None:
+        result[k]["data"]["datasets"][i]["data"][res["sector"]] = res["value"]
 # 時間設定ない場合エラー、データが存在しない場合nullにして送る
 
   result = [ v for v in result.values() ]
