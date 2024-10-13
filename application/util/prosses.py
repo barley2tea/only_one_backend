@@ -73,14 +73,15 @@ def PB_prosses(sendIoT:str, IoTs:list, data:bytes):
     raise RequestValueError(f'Bad image. shape={img.shape}')
 
   #test
-  if os.getenv('SAVE_IMAGE', 'False') == 'True':
+  test_flag = os.getenv('SAVE_IMAGE', 'False') == 'True'
+  if test_flag:
     test_dir = os.getenv('TEST_DIRECTORY', '.')
     num = len(glob.glob(f'{test_dir}/*'))
     with open(f"{test_dir}/{num}.jpg", 'wb') as f:
       f.write(data)
 
-  res = PB_model(img)
-  return [ {'ID': sendIoT, 'stat': int((len(res) + 1) // 2)} ]
+  res = PB_model(img, save=test_flag)
+  return [ {'ID': sendIoT, 'stat': int((len(res.boxes.cls) + 1) // 2)} ]
 
 
   

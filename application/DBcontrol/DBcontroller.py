@@ -76,6 +76,6 @@ class MysqlOperator:
       raise e
     finally:
       cur.close()
-    self.query_lock.release()
+      self.query_lock.release()
     return res
 
