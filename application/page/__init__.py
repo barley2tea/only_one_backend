@@ -29,12 +29,15 @@ def getReqJson(k):
   except KeyError:
     raise RequestKeyError(k)
 
-def HTTP_STAT(stat):
-  return  (jsonify({'state': 'success'}), 200) if stat == 200 else \
-          (jsonify({'error': 'Bad Request'}), 400) if stat == 400 else \
-          (jsonify({'error': 'Unauthorized'}), 401) if stat == 401 else \
-          (jsonify({'error': 'Forbidden'}), 403) if stat == 403 else \
-          (jsonify({'error': 'Not Found'}), 404) if stat == 404 else \
-          (jsonify({'error': 'Internal Server Error'}), 500)
+def HTTP_STAT(stat, message=None):
+  if message is None:
+    message = 'success' if stat == 200 else \
+              'Bad Request' if stat == 400 else \
+              'Unauthorized' if stat == 401 else \
+              'Forbidden' if stat == 401 else \
+              'Not Found' if stat == 404 else \
+              'Internal Server Error'
+  status = 'message' if stat == 200 else 'error'
+  return jsonify({status: message})
 
 __all__ = ['api']

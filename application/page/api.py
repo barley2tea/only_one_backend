@@ -219,36 +219,33 @@ def changes():
   sub_stmt2 = ""
   if flags["groupByID"]:
     sub_stmt1 = ", T4.dormitory, T3.floor, T2.No"
-    sub_stmt2 = ", T1.dormitory, T1.floor, T1.No"
+    sub_stmt2 = ", T0.dormitory, T0.floor, T0.No"
   elif flags["groupByFloor"]:
     sub_stmt1 = ", T4.dormitory, T3.floor"
-    sub_stmt2 = ", T1.dormitory, T1.floor"
+    sub_stmt2 = ", T0.dormitory, T0.floor"
   elif flags["groupByDormitory"]:
     sub_stmt1 = ", T4.dormitory"
-    sub_stmt2 = ", T1.dormitory"
+    sub_stmt2 = ", T0.dormitory"
 
-# データが存在しない区間は0として扱われる
   stmt = f"""
-WITH TEMP1 AS (
-  SELECT T1.time, T1.sector, SUM(T1.value) AS value, T5.type{sub_stmt1}
+SELECT T0.sector, AVG(T0.value) AS value, T0.type{sub_stmt2}
+FROM (
+  SELECT T5.time, T5.sector, SUM(T5.value) AS value, T2.type{sub_stmt1}
   FROM
-    parsedIoTData AS T1
-    INNER JOIN IoT AS T2 ON T1.IoTID = T2.IoTID
-    LEFT OUTER JOIN dormitoryPlace AS T3 ON T2.dormitoryPlaceID = T3.dormitoryPlaceID
-    LEFT OUTER JOIN dormitory AS T4 ON T3.dormitoryID = T4.dormitoryID
-    INNER JOIN IoTType AS T5 ON T2.IoTTypeID = T5.IoTTypeID
-  WHERE
-    T1.time >= %(stime)s AND T1.time < %(etime)s
-    AND ( %(id)s IS NULL OR T1.IoTID = %(id)s )
-    AND ( %(floor)s IS NULL OR T3.floor = %(floor)s )
-    AND ( %(dormitory)s IS NULL OR T4.dormitory = %(dormitory)s )
-    AND ( %(type)s IS NULL OR T5.type = %(type)s )
-    AND ( %(weekday)s IS NULL OR T1.week = %(weekday)s )
-  GROUP BY T5.type, T1.time, T1.sector{sub_stmt1}
-)
-SELECT T1.sector, AVG(T1.value) AS value, T1.type{sub_stmt2}
-FROM TEMP1 AS T1
-GROUP BY T1.type, T1.sector{sub_stmt2}
+    IoT AS T1
+    INNER JOIN IoTType AS T2
+      ON T1.IoTTypeID = T2.IoTTypeID AND ( %(type)s IS NULL OR T2.type = %(type)s )
+        AND ( %(id)s IS NULL OR T1.IoTID = %(id)s )
+    LEFT OUTER JOIN dormitoryPlace AS T3
+      ON T1.dormitoryPlaceID = T3.dormitoryPlaceID AND ( %(floor)s IS NULL OR T3.floor = %(floor)s )
+    LEFT OUTER JOIN dormitory AS T4
+      ON T3.dormitoryID = T4.dormitoryID AND ( %(dormitory)s IS NULL OR T4.dormitory = %(dormitory)s )
+    LEFT OUTER JOIN parsedIoTData AS T5
+      ON T5.IoTID = T1.IoTID AND T5.time >= %(stime)s AND T5.time < %(etime)s
+        AND ( %(weekday)s IS NULL OR T5.week = %(weekday)s )
+  GROUP BY T2.type, T5.time, T5.sector{sub_stmt1}
+) AS T0
+GROUP BY T0.type, T0.sector{sub_stmt2}
 """
   
   times = []
@@ -262,40 +259,38 @@ GROUP BY T1.type, T1.sector{sub_stmt2}
   if stime is not None:
     times.append([ stime, etime, f"{stime} ~ {etime}" ])
 
+  if not times:
+    app.logger.info("Invalid request parameters E")
+    return HTTP_STAT(400, 'No period set.')
+
   labels = [ str(timedelta(minutes=5) * i) for i in range(288) ]
   result = dict()
   for stime, etime, label in times:
     reqargs['stime'] = stime
     reqargs['etime'] = etime
-    res = default_ope.query(stmt, args=reqargs, dictionary=True, prepared=True)
-    if not res:
-      continue
-    dat = { k: [ res[i][k] for i in range(len(res)) ] for k in res[0].keys() }
+    ope_result = default_ope.query(stmt, args=reqargs, dictionary=True, prepared=True)
 
+    # Specify the grouping key
     groups = ["type", "dormitory", "floor", "No"]
     groups =  groups if flags["groupByID"] else\
               groups[:-1] if flags["groupByFloor"] else\
               groups[:-2] if flags["groupByDormitory"] else groups[:-3]
 
-    dat = pd.DataFrame(dat).groupby(groups).apply(lambda x: x.drop(columns=groups).to_dict(orient='records')).to_dict()
-    for k, v in dat.items():
-      missing_sector = tuple(set(range(288)) - { i['sector'] for i in v })
-      v.extend([ { "sector": sector, "value": None } for sector in missing_sector ])
+    for res in ope_result:
+      k = ( res[key] for key in groups )
+      if k not in result:
+        result[k] = {"data": { "datasets": [], "labels": labels }}
+        for g in ("type", "dormitory", "floor", "No"):
+          result[k][g] = res.get(g, None)
 
-      v.sort(key=lambda x: x['sector'])
+      i = next( ( i for i, l in enumerate(result[k]["data"]["datasets"]) if l == label), None )
 
-      if not result.get(k, False):
-        if type(k) is tuple:
-          result[k] = { g: k[i] for i, g in enumerate(groups) }
-        result[k] = { "type": k }
-        result[k]["data"] = {
-          "labels": labels,
-          "datasets": []
-        }
+      if i is None:
+        result[k]["data"]["datasets"].append({"data": [None] * 288, "label": label})
+        i = len(result[k]["data"]["datasets"]) - 1
 
-      datasets = { "label": label, "data": [ d["value"] for d in v] }
-      result[k]["data"]["datasets"].append(datasets)
-
+      result[k]["data"]["datasets"][i]["data"][res["sector"]] = res["value"]
+# 時間設定ない場合エラー、データが存在しない場合nullにして送る
 
   result = [ v for v in result.values() ]
   return jsonify(result), 200
