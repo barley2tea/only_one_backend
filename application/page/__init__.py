@@ -38,6 +38,6 @@ def HTTP_STAT(stat, message=None):
               'Not Found' if stat == 404 else \
               'Internal Server Error'
   status = 'message' if stat == 200 else 'error'
-  return jsonify({status: message})
+  return jsonify({status: message}), stat
 
 __all__ = ['api']
