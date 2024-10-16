@@ -80,7 +80,7 @@ def PB_prosses(sendIoT:str, IoTs:list, data:bytes):
     with open(f"{test_dir}/{num}.jpg", 'wb') as f:
       f.write(data)
 
-  res = PB_model(img, save=test_flag)
+  res = PB_model(img, save=test_flag)[0]
   return [ {'ID': sendIoT, 'stat': int((len(res.boxes.cls) + 1) // 2)} ]
 
 
