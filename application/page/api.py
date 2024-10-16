@@ -218,7 +218,7 @@ def changes():
   sub_stmt1 = ""
   sub_stmt2 = ""
   if flags["groupByID"]:
-    sub_stmt1 = ", T4.dormitory, T3.floor, T2.No"
+    sub_stmt1 = ", T4.dormitory, T3.floor, T1.No"
     sub_stmt2 = ", T0.dormitory, T0.floor, T0.No"
   elif flags["groupByFloor"]:
     sub_stmt1 = ", T4.dormitory, T3.floor"
@@ -226,6 +226,9 @@ def changes():
   elif flags["groupByDormitory"]:
     sub_stmt1 = ", T4.dormitory"
     sub_stmt2 = ", T0.dormitory"
+  else:
+    sub_stmt1 = ", T4.dormitory, T3.floor, T1.No"
+    sub_stmt2 = ", T0.dormitory, T0.floor, T0.No"
 
   stmt = f"""
 SELECT T0.sector, AVG(T0.value) AS value, T0.type{sub_stmt2}
@@ -233,16 +236,17 @@ FROM (
   SELECT T5.time, T5.sector, SUM(T5.value) AS value, T2.type{sub_stmt1}
   FROM
     IoT AS T1
-    INNER JOIN IoTType AS T2
-      ON T1.IoTTypeID = T2.IoTTypeID AND ( %(type)s IS NULL OR T2.type = %(type)s )
-        AND ( %(id)s IS NULL OR T1.IoTID = %(id)s )
-    LEFT OUTER JOIN dormitoryPlace AS T3
-      ON T1.dormitoryPlaceID = T3.dormitoryPlaceID AND ( %(floor)s IS NULL OR T3.floor = %(floor)s )
-    LEFT OUTER JOIN dormitory AS T4
-      ON T3.dormitoryID = T4.dormitoryID AND ( %(dormitory)s IS NULL OR T4.dormitory = %(dormitory)s )
+    INNER JOIN IoTType AS T2 ON T1.IoTTypeID = T2.IoTTypeID 
+    LEFT OUTER JOIN dormitoryPlace AS T3 ON T1.dormitoryPlaceID = T3.dormitoryPlaceID
+    LEFT OUTER JOIN dormitory AS T4 ON T3.dormitoryID = T4.dormitoryID 
     LEFT OUTER JOIN parsedIoTData AS T5
       ON T5.IoTID = T1.IoTID AND T5.time >= %(stime)s AND T5.time < %(etime)s
-        AND ( %(weekday)s IS NULL OR T5.week = %(weekday)s )
+  WHERE
+    ( %(id)s IS NULL OR T1.IoTID = %(id)s )
+    AND ( %(dormitory)s IS NULL OR T4.dormitory = %(dormitory)s )
+    AND ( %(floor)s IS NULL OR T3.floor = %(floor)s )
+    AND ( %(type)s IS NULL OR T2.type = %(type)s )
+    AND ( %(weekday)s IS NULL OR T5.week = %(weekday)s )
   GROUP BY T2.type, T5.time, T5.sector{sub_stmt1}
 ) AS T0
 GROUP BY T0.type, T0.sector{sub_stmt2}
@@ -276,11 +280,13 @@ GROUP BY T0.type, T0.sector{sub_stmt2}
               groups[:-1] if flags["groupByFloor"] else\
               groups[:-2] if flags["groupByDormitory"] else groups[:-3]
 
+    print(ope_result)
     for res in ope_result:
       k = ( res[key] for key in groups )
       if k not in result:
         result[k] = {"data": { "datasets": [], "labels": labels }}
         for g in ("type", "dormitory", "floor", "No"):
+          print(g, res.get(g, None), res)
           result[k][g] = res.get(g, None)
 
       i = next( ( i for i, l in enumerate(result[k]["data"]["datasets"]) if l == label), None )
