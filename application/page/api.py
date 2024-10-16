@@ -226,9 +226,6 @@ def changes():
   elif flags["groupByDormitory"]:
     sub_stmt1 = ", T4.dormitory"
     sub_stmt2 = ", T0.dormitory"
-  else:
-    sub_stmt1 = ", T4.dormitory, T3.floor, T1.No"
-    sub_stmt2 = ", T0.dormitory, T0.floor, T0.No"
 
   stmt = f"""
 SELECT T0.sector, AVG(T0.value) AS value, T0.type{sub_stmt2}
@@ -280,13 +277,11 @@ GROUP BY T0.type, T0.sector{sub_stmt2}
               groups[:-1] if flags["groupByFloor"] else\
               groups[:-2] if flags["groupByDormitory"] else groups[:-3]
 
-    print(ope_result)
     for res in ope_result:
       k = ( res[key] for key in groups )
       if k not in result:
         result[k] = {"data": { "datasets": [], "labels": labels }}
         for g in ("type", "dormitory", "floor", "No"):
-          print(g, res.get(g, None), res)
           result[k][g] = res.get(g, None)
 
       i = next( ( i for i, l in enumerate(result[k]["data"]["datasets"]) if l == label), None )
@@ -297,7 +292,6 @@ GROUP BY T0.type, T0.sector{sub_stmt2}
 
       if res["sector"] is not None:
         result[k]["data"]["datasets"][i]["data"][res["sector"]] = res["value"]
-# 時間設定ない場合エラー、データが存在しない場合nullにして送る
 
   result = [ v for v in result.values() ]
   return jsonify(result), 200
