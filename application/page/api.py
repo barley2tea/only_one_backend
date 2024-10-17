@@ -105,8 +105,8 @@ def dashboad():
     ID = d['ID'][:2]
     status = check(d['stat'], d['time'])
     key_list = [ID, d['num'], status] if ID == 'PB' else\
-               [d['place'][:3], ID, d['num'], bool(status)] if ID == 'SW' else\
-               [d['place'][:3], f"F{d['place'][4:]}", ID, d['num'], bool(status)]
+               [d['place'][:3], ID, d['num'], status] if ID == 'SW' else\
+               [d['place'][:3], f"F{d['place'][4:]}", ID, d['num'], status]
     format_dashboard(key_list, dashboard)
 
   # app.logger.debug(f'dashboard: {dashboard}')
@@ -161,7 +161,7 @@ GROUP BY T2.IoTID, T2.time
     "dormitory": r['dormitory'],
     "floor": r['floor'],
     "No": r['No'],
-    "status": r["status"] if r['type'] == "PB" else bool(r['status']),
+    "status": r["status"],
     "startedTime": get_started.get(r['IoTID'], None),
     "latestDataTime": r['time']
   } for r in res ]
