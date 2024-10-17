@@ -26,7 +26,7 @@ WHERE
 ORDER BY T1.time;
 """
 
-stmt3 = "INSERT INTO parsedIoTdata(`time`, `value`, `sector`, `IoTID`) VALUE(%(time)s, %(value)s, %(sector)s, %(IoTID)s);"
+stmt3 = "INSERT INTO parsedIoTData(`time`, `value`, `sector`, `IoTID`) VALUE(%(time)s, %(value)s, %(sector)s, %(IoTID)s);"
 
 parsedUser = {
   "user": "parsedInserter",
