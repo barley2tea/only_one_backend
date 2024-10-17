@@ -278,7 +278,7 @@ GROUP BY T0.type, T0.sector{sub_stmt2}
               groups[:-2] if flags["groupByDormitory"] else groups[:-3]
 
     for res in ope_result:
-      k = ( res[key] for key in groups )
+      k = tuple([ res[key] for key in groups ])
       if k not in result:
         result[k] = {"data": { "datasets": [], "labels": labels }}
         for g in ("type", "dormitory", "floor", "No"):
