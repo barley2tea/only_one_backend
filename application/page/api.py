@@ -284,7 +284,7 @@ GROUP BY T0.type, T0.sector{sub_stmt2}
         for g in ("type", "dormitory", "floor", "No"):
           result[k][g] = res.get(g, None)
 
-      i = next( ( i for i, l in enumerate(result[k]["data"]["datasets"]) if l == label), None )
+      i = next( ( i for i, l in enumerate(result[k]["data"]["datasets"]) if l["label"] == label), None )
 
       if i is None:
         result[k]["data"]["datasets"].append({"data": [None] * 288, "label": label})
