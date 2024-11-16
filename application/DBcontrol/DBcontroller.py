@@ -45,9 +45,11 @@ class MysqlOperator:
     return config['password']
 
   def close_connection(self):
+    self.query_lock.acquire()
     if self.con is not None:
       self.con.close()
       self.con = None
+    self.query_lock.release()
 
   def commit(self):
     self.con.commit()

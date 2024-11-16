@@ -11,7 +11,7 @@ import re
 
 
 # Insert IoTData
-@app.route("/", methods=['POST'])
+@app.route("/iot/insert", methods=['POST'])
 @catchError
 def root():
   # IP filtering.
@@ -44,6 +44,8 @@ def root():
   app.logger.debug(f'data: "{"bytes" if len(request_data) > 100 else request_data}" stat:"{args}"')
   stmt = " INSERT INTO `IoTData`(`IoTID`, `dataStatus`) VALUES(%(ID)s, %(stat)s);"
   iotdata_ope.query(stmt, commit=True, args=args, many=many, prepared=True)
+
+  default_ope.close_connection()
   return jsonify({'status': 'success', 'data': args}), 200
 
 
@@ -189,7 +191,7 @@ def changes():
   }
 
   if stime is not None and etime is not None:
-    time_pattern = re.compile(r'\d{4}-[0-1]\d-\d{2}-[0-2]\d:[0-6]\d:[0-6]\d')
+    time_pattern = re.compile(r'\d{4}-[0-1]?\d-\d?\d-[0-2]?\d:[0-6]?\d:[0-6]?\d')
     if not time_pattern.fullmatch(stime):
       app.logger.info("Invalid request parameters A")
       return HTTP_STAT(400)
@@ -294,6 +296,37 @@ GROUP BY T0.type, T0.sector{sub_stmt2}
         result[k]["data"]["datasets"][i]["data"][res["sector"]] = res["value"]
 
   result = [ v for v in result.values() ]
+  
+  # s:傾き, p:点(x, y)
+  func = lambda x, s, p: s * (x - p[0]) + p[1]
+  for res in result:
+    for ds in res["data"]["datasets"]:
+      null_start = 0
+      for i, d in enumerate(ds["data"]):
+        if d is not None:
+          if null_start + 1 >= i:
+            # null_start + 1がiだったらnull_startをiにする(nullが挟まっていない時)
+            null_start = i
+          else:
+            # 傾き・点pの設定
+            if ds["data"][null_start] is None:
+              # [data][null_start]は基本値がある。[data][0]がnullの時のみ成り立つ
+              s, p = 0, (0, 0)
+              ds["data"][null_start] = 0
+            else:
+              p = (null_start, ds["data"][null_start])
+              s = (ds["data"][i] - p[1]) / (i - p[0])
+
+            null_start += 1
+            while null_start < i:
+              ds["data"][null_start] = func(null_start, s, p)
+              null_start += 1
+      # 最後がnullの時のフォロー
+      if ds["data"][-1] is None:
+        while null_start < len(ds["data"]):
+          ds["data"][null_start] = 0
+          null_start += 1
+
   return jsonify(result), 200
 
 

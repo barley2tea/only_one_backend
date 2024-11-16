@@ -7,8 +7,11 @@ import mysql.connector
 import datetime as dt
 import pytz
 import pandas as pd
-stmt0 = "SELECT MAX(T.time) + INTERVAL %(span)s MINUTE AS stime, MAX(T.time) + INTERVAL %(span)s MINUTE + INTERVAL 1 DAY AS etime FROM parsedIoTData AS T;"
-stmt1 = 'SELECT DATE_FORMAT(MIN(T.time),%(tf)s) stime, DATE_FORMAT(DATE(MIN(T.time)), %(tf)s) + INTERVAL 1 DAY etime FROM IoTData T'
+from copy import copy
+# stmt0 = "SELECT MAX(T.time) + INTERVAL %(span)s MINUTE AS stime, MAX(T.time) + INTERVAL %(span)s MINUTE + INTERVAL 1 DAY AS etime FROM parsedIoTData AS T;"
+stmt0 = "SELECT MAX(T.time) + INTERVAL %(span)s MINUTE AS stime FROM parsedIoTData T;"
+# stmt1 = 'SELECT DATE_FORMAT(MIN(T.time),%(tf)s) stime, DATE_FORMAT(DATE(MIN(T.time)), %(tf)s) + INTERVAL 1 DAY etime FROM IoTData T'
+stmt1 = 'SELECT MIN(T.time) + INTERVAL %(span)s MINUTE AS stime FROM IoTData T'
 
 # データ(境界値は考えない)の取得
 stmt2 = """
@@ -31,7 +34,7 @@ stmt3 = "INSERT INTO parsedIoTData(`time`, `value`, `sector`, `IoTID`) VALUE(%(t
 parsedUser = {
   "user": "parsedInserter",
   "host": "localhost",
-  "password": "IoT_2_parsed",
+  "password": "password3",
   "database": "only1DB"
 }
 
@@ -52,14 +55,13 @@ def query(stmt, params=None, many=False, commit=False):
     return cur.fetchall()
 
 
-res = query(stmt0, {"span": span})
-stime = res[0]['stime']
-etime = res[0]['etime']
+# parsedIoTDataに登録されたデータが最も最新の時刻を取得する
+stime = query(stmt0, {"span": span})[0]['stime']
+if stime is None:
+  stime = query(stmt1, {"span": span})[0]['stime']
+  stime -= dt.timedelta(minutes=stime.minute % span, seconds=stime.second)
 
-if res[0]['stime'] is None:
-  res = query(stmt1, {"tf": tf})
-  stime = dt.datetime.strptime(res[0]['stime'], "%Y-%m-%d %H:%M:%S")
-  etime = dt.datetime.strptime(res[0]['etime'], "%Y-%m-%d %H:%M:%S")
+etime = copy(stime) - dt.timedelta(hours=stime.hour, minutes=stime.minute) + dt.timedelta(days=1)
 
 def insert_data(stime, etime):
   def new_dict(copy_dict, ta, status):
@@ -71,6 +73,9 @@ def insert_data(stime, etime):
     return copy_dict
 
   dat = query(stmt2, {"stime": stime, "etime": etime, "span": span, "tf": tf})
+  # print("-----dat-----")
+  # for d in dat:
+  #   print({ k: str(v) for k, v in d.items() })
   if len(dat) == 0:
     return etime, etime + dt.timedelta(days=1)
 
@@ -92,6 +97,13 @@ def insert_data(stime, etime):
       if add_list[-1]['time'] == ta:
         add_list[-1]['value'] = status * (d['o_time'] - ta).total_seconds()
 
+  # print("-----exe1-----")
+  # for d in dat:
+  #   print({ k: str(v) for k, v in d.items() })
+  # print()
+  # for d in add_list:
+  #   print({ k: str(v) for k, v in d.items() })
+
   for i in buf.values():
     ta, tb = dat[i]['time'] + span_time, dat[i]['o_time']
     if ta < etime:
@@ -103,6 +115,11 @@ def insert_data(stime, etime):
         loopNo += 1
 
   dat.extend(add_list)
+
+  # print("-----exe2-----")
+  # for d in dat:
+  #   print({ k: str(v) for k, v in d.items() })
+
   dat = { k: [ dat[i][k] for i in range(len(dat)) ] for k in dat[0].keys() if k in ('time', 'value', 'sector', 'IoTID')}
 
   dat = pd.DataFrame(dat).dropna(subset='value')
@@ -111,6 +128,9 @@ def insert_data(stime, etime):
   dat_parsed = dat_parsed['value'].to_dict()
   ins_args = [ {'time': k[0].to_pydatetime(), 'sector': k[2], 'value': v, 'IoTID': k[1] } for k, v in dat_parsed.items() ]
 
+  # print("-----result-----")
+  # for d in ins_args:
+  #   print({ k: str(v) for k, v in d.items() })
   query(stmt3, ins_args, many=True, commit=True)
 
   return etime, etime + dt.timedelta(days=1)
