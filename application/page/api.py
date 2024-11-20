@@ -132,7 +132,7 @@ FROM
     FROM `IoTData` AS ST1
     GROUP BY ST1.IoTID
   ) AS T2 ON T1.IoTID = T2.IoTID AND T1.time = T2.time
-  INNER JOIN `IoT` AS T3 ON T1.IoTID = T3.IoTID
+  RIGHT OUTER JOIN `IoT` AS T3 ON T1.IoTID = T3.IoTID
   LEFT OUTER JOIN `dormitoryPlace` AS T4 ON T3.dormitoryPlaceID = T4.dormitoryPlaceID
   LEFT OUTER JOIN `dormitory` AS T5 ON T4.dormitoryID = T5.dormitoryID
   INNER JOIN IoTType AS T6 ON T3.IoTTypeID = T6.IoTTypeID

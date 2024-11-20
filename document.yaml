@@ -2,33 +2,34 @@ openapi: 3.0.3
 info:
   title: only_one_backend
   description: |-
-    This is the flask-based API that forms the backend of 'DormiTool'.
+    「どみとる」のバックエンドシステムであるFlaskベースのWebAPIです。
   license:
-    name: flask 2.2.x
+    name: Flask 3.0.x
     url: https://msiz07-flask-docs-ja.readthedocs.io/ja/latest/license.html
-  version: 2.1.0
+  version: 3.0.0
 servers:
-  - url: https://mmm-foktm-iot.ishikawa-nct.ac.jp
+  - url: https://your_host
     description: Production Server
   - url: http://localhost:5000
     description: Executing with uWSGI
   - url: http://localhost:5500
     description: Deveropment Server
 tags:
-  - name: IoT
-    description: API provided to the IoT devices
+  - name: iot
+    description: IoTデバイスがアクセスするAPI
   - name: api
+    description: フロントエンドが使用するAPI
 paths:
-  /:
+  /iot/insert:
     post:
       tags:
-        - IoT
-      summary: Adding data to the dashboard
-      description: Adding data to the dashboard. Only authorized devices and authorized data items will be allowed to access this URL. A client certificate is required for access.
+        - iot
+      summary: データの登録
+      description: JSONデータや画像データを元にデータベースへ使用状況データを登録します。このAPIへのアクセスはデータベースに登録されたIPを持つIoTデバイスに限られます。
       deprecated: false
       requestBody:
         required: true
-        description: Add data to mysql
+        description: 対象となる機器(洗濯機や乾燥機、シャワー室など)に割り振られたIDをkey、データベースへ登録する値をvalueとする。ここでは使用可能状態を1、使用不可を0としている。また、`image/jpeg`を送る際はIDは送信してきたIPから推測し、valueは画像を元に判断される。
         content:
           application/json:
             schema:
@@ -63,9 +64,9 @@ paths:
     get:
       tags:
         - api
-      summary: Getting dashboard data
-      description: Getting latest dashboard data. If no data is registered in the DB, the corresponding item in the array will be null. If it is the end of the array, the element itself will be missing. If the data for a floor or dormitory is not all registered, the corresponding floor or dormitory item will disappear. This situation is highly unlikely, so in most cases you don't need to think about it.
-      deprecated: false
+      summary: 利用状況データの取得
+      description: 最新の利用状況データを返します。データがデータベースへ登録されていない場合はnull、もしくはそのデータ項目が欠落します。現在、`/api/dashbord_details`がより詳細な情報を返すため、非推奨としています。
+      deprecated: true
       parameters:
         - name: dormitory
           in: query
@@ -107,37 +108,37 @@ paths:
     get:
       tags:
         - api
-      summary: Getting Detailed data on the dashboard
-      description: Getting detailed data on the dashboard. If no data is registered in the DB, the corresponding items will not be included. This is provides more detailed information than "/api/dashboard". Therefore, it can be said to be a superior version of that.
+      summary: 利用状況の詳細を取得
+      description: 利用状況の詳細なデータを取得します。データベースにデータが登録されていない場合はstatus, startedTime, lastDataTimeはnullを返します。startedTimeは利用不可になった時点の時間を表します。lastDataTimeはデータが登録された時間を表します。statusは状態を表します。trueなら利用可能を表します。
       deprecated: false
       parameters:
         - name: id
           in: query
-          description: Specify by IoTID.
+          description: IoTデバイスに割り振られたIDを指定します。
           schema:
             type: string
             example: WA_311
         - name: dormitory
           in: query
-          description: Name of the dormitory building to get. If this parameter is ALL or not using, get all data of domitory.
+          description: 寮棟を指定します。ALLが指定された場合やパラメータが存在しない場合はすべてのデータを返します。
           schema:
             type: string
-            example: MOU, CEN, SEA, SPA or ALL
+            example: ALL
         - name: floor
           in: query
-          description: The building floor to get. This parameter is ignored if the dormitory parameter is ALL or not specified. If this parameter is ALL or not using, get all data of floor.
+          description: 階層を指定します。ALLが指定された場合やパラメータが存在しない場合はすべてのデータを返します。
           schema:
             type: string
             example: 1 ~ 5 or ALL
         - name: type
           in: query
-          description: Name of the data item to get. If this parameter is PB, other parameter is ignored. If this parameter is ALL or not using, get all data items.
+          description: IoTデバイスの分類を指定します。
           schema:
             type: string
             example: DR, WA, SW, PB or ALL
       responses:
         '200':
-          description: Successful operation. If a parameter is specified, only the specified items are returned. Also, if the target item does not exist (e.g. dormitory=MOU&floor=4), an empty element is returned. When "type" is null,  "status" is an integer and "dormitory", "floor", "num" is null when "type" is PB. When the "status" is False or "type" is PB, "startedTime" is null.
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -150,91 +151,91 @@ paths:
     get:
       tags:
         - api
-      summary: Get usage transitions
-      description: Get usage transitions.
+      summary: 利用状況の推移の取得
+      description: 利用状況の推移を取得します。集計期間中にデータベースに値が登録されていない場合、前後の値を通る直線上の値を返します。前後に値がない場合は0を返します。
       deprecated: false
       parameters:
         - name: id
           in: query
-          description: Specify by IoTID.
+          description: IoTデバイスに割り振られたIDを指定します。
           schema:
             type: string
             example: WA_311
         - name: dormitory
           in: query
-          description: Name of the dormitory building to get. If this parameter is ALL or not using, get all data of domitory.
+          description: 寮棟を指定します。ALLが指定された場合やパラメータが存在しない場合はすべてのデータを返します。
           schema:
             type: string
-            example: MOU, CEN, SEA, SPA or ALL
+            example: ALL
         - name: floor
           in: query
-          description: The building floor to get. This parameter is ignored if the dormitory parameter is ALL or not specified. If this parameter is ALL or not using, get all data of floor.
+          description: 階層を指定します。ALLが指定された場合やパラメータが存在しない場合はすべてのデータを返します。
           schema:
             type: string
             example: 1 ~ 5 or ALL
         - name: type
           in: query
-          description: Name of the data item to get. If this parameter is PB, other parameter is ignored. If this parameter is ALL or not using, get all data items.
+          description: IoTデバイスの分類を指定します。
           schema:
             type: string
             example: DR, WA, SW, PB or ALL
         - name: weekday
           in: query
-          description: Specify the day of the week to count.
+          description: 曜日を指定します。
           schema:
             type: string
             example: MON, MONDAY, TUE, TUESDAY and so on.
         - name: weekly
           in: query
-          description: Flag to specify whether to include items calculated using data from the past week.
+          description: 集計の範囲を直近の1週間としたデータ項目を取得します。
           schema:
             type: string
             example: TRUE
         - name: monthly
           in: query
-          description: Flag to specify whether to include items calculated using data from the past month.
+          description: 集計の範囲を直近の1ヶ月としたデータ項目を取得します。
           schema:
             type: string
             example: TRUE
         - name: halfYear
           in: query
-          description: Flag to specify whether to include items calculated using data from the past half year.
+          description: 集計の範囲を直近の半年間としたデータ項目を取得します。
           schema:
             type: string
             example: TRUE
         - name: startTime
           in: query
-          description: Specifies the start of the period to aggregate. This is added as a separate label. If not used with endTime, HTTP status 400 will be returned.
+          description: 集計期間の開始日時を指定します。
           schema:
             type: string
             example: YYYY-MM-DD-hh:mm:ss
         - name: endTime
           in: query
-          description: Specifies the end of the period to aggregate. This is added as a separate label. If not used with endTime, HTTP status 400 will be returned.
+          description: 集計期間の終了日時を指定します。startTimeが指定されない場合、HTTP 400を返します。startTimeのみが存在する場合、endTimeは現在時刻(NOWを指定した場合と同じ)となります。
           schema:
             type: string
-            example: YYYY-MM-DD-hh:mm:ss
+            example: YYYY-MM-DD-hh:mm:ss or NOW
         - name: groupByDormitory
           in: query
-          description: Specify whether to group by dormitory building. If groupByFloor or groupByID is specified, this parameter is ignored.
+          description: 寮棟でグループ化して集計します。
           schema:
             type: string
             example: TRUE
         - name: groupByFloor
           in: query
-          description: Specify whether to group by dormitory building and floor. If or groupByID is specified, this parameter is ignored.
+          description: 寮棟および階層でグループ化して集計します
           schema:
             type: string
             example: TRUE
         - name: groupByID
           in: query
-          description: Specify whether to group by dormitory building.
+          description: IoTデバイスごとに集計します。
           schema:
             type: string
             example: TRUE
       responses:
         '200':
-          description: Successful operation. If groupByFloor is TRUE, "No" is not include. If groupByDormitory is TRUE, "floor" and "No" is not include. If don't group "floor", "dormitory" and "No" is not include. If there are missing values in the data in the datasets, those values will be null. If the data does not exist, it will not be included in the response, regardless of whether the flag is set or not.
+          description: Successful operation.
           content:
             application/json:
               schema:
